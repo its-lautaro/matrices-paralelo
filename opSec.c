@@ -2,6 +2,8 @@
 #include<stdlib.h>  
 #include <sys/time.h>
 
+
+
 double dwalltime() {
     double sec;
     struct timeval tv;
@@ -9,36 +11,6 @@ double dwalltime() {
     gettimeofday(&tv, NULL);
     sec = tv.tv_sec + tv.tv_usec / 1000000.0;
     return sec;
-}
-
-double maxMatriz(double* matriz, int n) {
-    double maxVal = -1;
-    int i, j;
-
-    for (i = 0; i < n; i++) {
-        for (j = 0; j < n; j++) {
-            if (matriz[i * n + j] > maxVal) {
-                maxVal = matriz[i * n + j];
-            }
-        }
-    }
-
-    return maxVal;
-}
-
-double minMatriz(double* matriz, int n) {
-    double minVal = 9999;
-    int i, j;
-
-    for (i = 0; i < n; i++) {
-        for (j = 0; j < n; j++) {
-            if (matriz[i * n + j] < minVal) {
-                minVal = matriz[i * n + j];
-            }
-        }
-    }
-
-    return minVal;
 }
 
 void multBloques(double* A, double* B, double* C, int n, int bs) {
@@ -75,7 +47,7 @@ void sumBloques(double* A, double* B, double* C, int n, int bs) {
                 for (i = 0; i < bs; i++) {
                     for (j = 0; j < bs; j++) {
                         for (k = 0; k < bs; k++) {
-                            cblk[i * n + j] += ablk[i * n + k] + bblk[i * n + k];
+                            cblk[i * n + j] = ablk[i * n + k] + bblk[i * n + k];
                         }
                     }
                 }
@@ -96,53 +68,26 @@ void sumBloques(double* A, double* B, double* C, int n, int bs) {
 void multEscalar(double* matriz, int n, int escalar, int bs) {
     int i, j, bi, bj;
     //multiplicacion en bloques
-    for (bi = 0; bi < n - bs; bi += bs) {
-        for (bj = 0; bj < n - bs; bj += bs) {
-            for (i = bi; i < bi + bs; i++) {
-                for (j = bj; j < bj + bs; j++) {
+    for (bi = 0; bi < n; bi += bs) {
+        for (bj = 0; bj < n; bj += bs) {
+            for (i = bi;(i < bi + bs) && (i < n); i++) {
+                for (j = bj; (j < bj + bs) && ( j < n); j++) {
                     matriz[i * n + j] *= escalar;
                 }
             }
         }
     }
 
-    // multiplicacion
-    // for (int i = 0; i < n; i++)
-    // {
-    //     for (int j = 0; j < n; j++)
-    //     {
-    //         matriz[i*n+j] *= escalar;
-    //     }
-
-    // }
-
-}
-
-void multProm(double* matriz, double* result, int n, int prom, int bs) {
-    int i, j, bi, bj;
-
-    for (bi = 0; bi < n - bs; bi += bs) {
-        for (bj = 0; bj < n - bs; bj += bs) {
-            for (i = bi; i < bi + bs; i++) {
-                for (j = bj; j < bj + bs; j++) {
-                    result[i * n + j] = matriz[i * n + j] * prom;
-                }
-            }
+    //multiplicacion
+    /*for (int i = 0; i < n; i++)
+    {
+        for (int j = 0; j < n; j++)
+        {
+            matriz[i*n+j] *= escalar;
         }
-    }
-}
 
-double prom(double* m, int n) {
-    int i, j;
-    double sum = 0;
+    }*/
 
-    for (i = 0; i < n; i++) {
-        for (j = 0; j < n; j++) {
-            sum += m[i * n + j];
-        }
-    }
-
-    return (sum / n * n);
 }
 
 void printMatriz(double* matriz, int n) {
@@ -158,7 +103,7 @@ void printMatriz(double* matriz, int n) {
 
 int main(int argc, char* argv[]) {
     double* A, * B, * C, * D, * P, * R, * AB, * ABC, * DC, * DCB;
-    double maxD, minA;
+    double maxD = -1, minA = 999, sum=0;
     int n, bs;
     int i, j, k;
     float promP;
@@ -196,46 +141,59 @@ int main(int argc, char* argv[]) {
             R[i * n + j] = 0.0;
         }
     }
+
     //tomar tiempo start
-    //double timetick = dwalltime();
+    double timetick = dwalltime();
 
-    multBloques(A, B, AB, n, bs); //A*B (todos los elementos n)
-    multBloques(AB, C, ABC, n, bs); //AB*C 
+    //realizamos la multiplicacion de matrices
+    multBloques(A, B, AB, n, bs); //A*B (n)
+    multBloques(AB, C, ABC, n, bs); //AB*C (n*n)
+    
+    multBloques(D, C, DC, n, bs); //D*C (n)
+    multBloques(DC, B, DCB, n, bs); //DC*B (n*n)
 
-    multBloques(D, C, DC, n, bs); //D*C
-    multBloques(DC, B, DCB, n, bs); //DC*B
+    //calculamos el valor maximo de D
+    for (int i = 0; i < n; i++) {
+        for (int j = 0; j < n; j++) {
+            if (D[i * n + j] > maxD) {
+                maxD = D[i * n + j];
+            }
+        }
+    }
 
-    maxD = maxMatriz(D, n);
-    minA = minMatriz(A, n);
-    printf("El maximo es %d el minimo es %d\n", maxD, minA);
+    //calculamos el valor minimo de A
+    for (int i = 0; i < n; i++) {
+        for (int j = 0; j < n; j++) {
+            if (A[i * n + j] < minA) {
+                minA = A[i * n + j];
+            }
+        }
+    }
 
     //multiplicamos las matrices por los valores maximos y minimos respectivos
-    multEscalar(ABC, n, maxD, bs);
-    printf("El resultado de ABC es:\n");
-    printMatriz(ABC, n);
-    
-    multEscalar(DCB, n, minA, bs);
-    printf("El resultado de DCB es:\n");
-    printMatriz(DCB, n);
+    multEscalar(ABC, n, maxD, bs); //ABC*maxD = (n*n*max)
+    multEscalar(DCB, n, minA, bs); //DCB*miniD = (n*n*min)
+
     //realizamos la suma y lo guardamos en P
     sumBloques(ABC, DCB, P, n, bs);
+    
+    //calculamos el promedio de P
+    for (int i = 0; i < n; i++) {
+        for (int j = 0; j < n; j++) {
+            sum += P[i * n + j];
+        }
+    }
+    
+    //multiplicamos a P por su promedio
+    multEscalar(P, n, (sum/(n*n)), bs);
 
-    //double totalTime = dwalltime() - timetick;
-    //printf("Tiempo en bloques de %d x %d: %f\n", bs, bs, totalTime);
-
-    printf("El resultado de la operación P = MaxD.(ABC) + MinA.(DCB) es:\n");
-    printMatriz(P, n);
-
-    promP = prom(P, n);
-
-    //consultar
-    //multiplicamos a P por su prom
-    multProm(P, R, n, promP, bs);
-    //multEscalar(P, n, promP, bs);
+    double totalTime = dwalltime() - timetick;
+    printf("Tiempo en bloques de %d x %d: %f\n", bs, bs, totalTime);
 
     printf("El resultado de la operación R = Prom(P)*P es:\n");
-    printMatriz(R, n);
+    printMatriz(P, n);
 
+    //liberamos memoria
     free(A);
     free(B);
     free(C);
