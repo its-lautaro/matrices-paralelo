@@ -11,7 +11,7 @@
 int N;//tamaño de la matriz
 int T;//cantidad de threads
 double* matriz;
-double minimo;
+double minimo=9999;
 pthread_mutex_t mutex_minimo;
 
 double dwalltime() {
@@ -39,9 +39,8 @@ double sec_min(double* matriz, int n) {
 
 void* min(void* arg) {
     int id = *(int*)arg;
-
-    int start = id * (N / T);
-    int end = (id + 1) * (N / T);
+    int start = id * ((N*N) / T);
+    int end = id < (T-1)? (id + 1) * ((N*N) / T):(N*N)-1;
     double min_local = matriz[start];
 
     for (int i = start + 1; i < end; i++) {
@@ -51,9 +50,9 @@ void* min(void* arg) {
     }
 
     pthread_mutex_lock(&mutex_minimo);
-    if (min_local < minimo) {
-        minimo = min_local;
-    }
+        if (min_local < minimo) {
+            minimo = min_local;
+        }
     pthread_mutex_unlock(&mutex_minimo);
 
     pthread_exit(NULL);
@@ -71,8 +70,8 @@ int main(int argc, char* argv[]) {
 
     //inicializar
     pthread_mutex_init(&mutex_minimo, NULL);
-    for (int i = 0;i < N * N;i++) {
-        matriz[i] = (N * N) - i;
+    for (int i = 0;i <= (N * N);i++) {
+        matriz[i] = i+1;
     }
 
     //tomar tiempo start
@@ -90,6 +89,6 @@ int main(int argc, char* argv[]) {
     double totalTime = dwalltime() - timetick;
 
     printf("Tiempo %fs\n", totalTime);
-    printf("valor minimo: %f", minimo);
+    printf("valor minimo: %f\n", minimo);
     return 0;
 }
