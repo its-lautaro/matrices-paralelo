@@ -1,4 +1,4 @@
-//Multiplicacion de matrices cuadradas por bloques
+//Busca el tamaño de bloque optimo
 #include<stdio.h>
 #include<stdlib.h>  
 #include <sys/time.h>
@@ -14,7 +14,8 @@ double dwalltime() {
 
 int main(int argc, char* argv[]) {
 	double* A, * B, * C;
-	int n, bs;
+	int n= atoi(argv[1]);
+	int bs = 16;
 	//bloques
 	double* ablk, * bblk, * cblk;
 	//indices
@@ -22,12 +23,6 @@ int main(int argc, char* argv[]) {
 	int i, j, k;
 
 	double timetick;
-
-	// Chequeo de parámetros
-	if ((argc != 3) || ((n = atoi(argv[1])) <= 0) || ((bs = atoi(argv[2])) <= 0) || ((n % bs) != 0)) {
-		printf("Error en los parámetros. Usar: ./%s N BS (N debe ser multiplo de BS)\n", argv[0]);
-		exit(1);
-	}
 
 	// Alocar  
 	A = (double*)malloc(n * n * sizeof(double));
@@ -43,42 +38,33 @@ int main(int argc, char* argv[]) {
 		}
 	}
 
+	while (bs <= n) {
 
-	printf("Multiplicando matrices de %d x %d en bloques de %d x %d\n", n, n, bs, bs);
+		//tomar tiempo start
+		timetick = dwalltime();
 
-	//tomar tiempo start
-	timetick = dwalltime();
-
-	for (I = 0; I < n; I += bs) {
-		for (J = 0; J < n; J += bs) {
-			cblk = &C[I * n + J];
-			for (K = 0; K < n; K += bs) {
-				ablk = &A[I * n + K];
-				bblk = &B[J * n + K];
-				for (i = 0; i < bs; i++) {
-					for (j = 0; j < bs; j++) {
-						for (k = 0; k < bs; k++) {
-							cblk[i * n + j] += ablk[i * n + k] * bblk[j * n + k];
+		for (I = 0; I < n; I += bs) {
+			for (J = 0; J < n; J += bs) {
+				cblk = &C[I * n + J];
+				for (K = 0; K < n; K += bs) {
+					ablk = &A[I * n + K];
+					bblk = &B[J * n + K];
+					for (i = 0; i < bs; i++) {
+						for (j = 0; j < bs; j++) {
+							for (k = 0; k < bs; k++) {
+								cblk[i * n + j] += ablk[i * n + k] * bblk[j * n + k];
+							}
 						}
 					}
 				}
 			}
 		}
+
+		//calcular tiempo de ejecución
+		double totalTime = dwalltime() - timetick;
+		printf("Tiempo en bloques de %d x %d: %f\n", bs, bs, totalTime);
+		bs*=2;
 	}
-
-	//calcular tiempo de ejecución
-	double totalTime = dwalltime() - timetick;
-
-	// Validar resultados
-	for (i = 0; i < n; i++) {
-		for (j = 0; j < n; j++) {
-			if (C[i * n + j] != n) {
-				printf("Error en %d, %d, valor: %f\n", i, j, C[i * n + j]);
-			}
-		}
-	}
-
-	printf("Tiempo en segundos %f\n", totalTime);
 
 
 	free(A);
