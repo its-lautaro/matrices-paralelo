@@ -13,6 +13,16 @@ double dwalltime() {
     return sec;
 }
 
+void validate(double* matriz, double res, int N){
+    for (int i = 0; i < N; i++){
+        for (int j = 0; j < N; j++){
+            if (matriz[i * N  + j] != res){
+                printf("Error en %d, %d, valor: %f\n", i, j, matriz[i * N + j]);
+            }
+        }
+    }
+}
+
 void printMatriz(double* matriz, int N) {
     int i, j;
 
@@ -165,7 +175,21 @@ int main(int argc, char* argv[]) {
     prod_escalar(P,R,promP,N,bs);
 
     double totalTime = dwalltime() - timetick;
-    printf("Tiempo en bloques de %d x %d: %f\N", bs, bs, totalTime);
+    printf("Tiempo en bloques de %d x %d: %f\n", bs, bs, totalTime);
+
+    //Validaciones 
+    //AB = A*B , todos sus valores son N
+    validate(AB, N, N);
+    //DC = D*C , todos sus valores son N
+    validate(DC, N, N);
+    //ABC = AB*C , todos sus valores son N*N*maxD
+    validate(ABC, N*N*maxD, N);
+    //DCB= DC*B , todos sus valores son N*N*minA
+    validate(DCB, N*N*minA, N);
+    //P = MaxD*ABC + MinA*DCB, todos sus valores son (N*N*maxD)+(N*N*minA)
+    validate(P, ((N*N*maxD)+(N*N*minA)), N);
+    //R = promP*P, todos sus valores son promP*((N*N*maxD)+(N*N*minA))
+    validate(R, (promP*((N*N*maxD)+(N*N*minA))), N);
 
     //liberamos memoria
     free(A);
