@@ -1,4 +1,5 @@
 /* Encontrar el valor minimo en matrices de nxn
+* Usando mutex 
 * Memoria Compartida (pthread)
 * Lautaro
 */
