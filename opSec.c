@@ -13,185 +13,159 @@ double dwalltime() {
     return sec;
 }
 
-void multBloques(double* A, double* B, double* C, int n, int bs) {
-    int I, J, K, i, j, k;
-    double* ablk, * bblk, * cblk;
-    for (I = 0; I < n; I += bs) {
-        for (J = 0; J < n; J += bs) {
-            cblk = &C[I * n + J];
-            for (K = 0; K < n; K += bs) {
-                ablk = &A[I * n + K];
-                bblk = &B[J * n + K];
-                for (i = 0; i < bs; i++) {
-                    for (j = 0; j < bs; j++) {
-                        for (k = 0; k < bs; k++) {
-                            cblk[i * n + j] += ablk[i * n + k] * bblk[j * n + k];
-                        }
-                    }
-                }
-            }
-        }
-    }
-}
-
-void sumBloques(double* A, double* B, double* C, int n, int bs) {
-    //suma en bloques
-    int I, J, K, i, j, k;
-    double* ablk, * bblk, * cblk;
-    for (I = 0; I < n; I += bs) {
-        for (J = 0; J < n; J += bs) {
-            cblk = &C[I * n + J];
-            for (K = 0; K < n; K += bs) {
-                ablk = &A[I * n + K];
-                bblk = &B[J * n + K];
-                for (i = 0; i < bs; i++) {
-                    for (j = 0; j < bs; j++) {
-                        for (k = 0; k < bs; k++) {
-                            cblk[i * n + j] = ablk[i * n + k] + bblk[i * n + k];
-                        }
-                    }
-                }
-            }
-        }
-    }
-    //suma
-    // for (int i = 0; i < n; i++)
-    // {
-    //     for (int j = 0; j < n; j++)
-    //     {
-    //         C[i*n+j] += A[i*n+j] + B[i*n+j];
-    //     }
-
-    // }   
-}
-
-void multEscalar(double* matriz, int n, int escalar, int bs) {
-    int i, j, bi, bj;
-    //multiplicacion en bloques
-    for (bi = 0; bi < n; bi += bs) {
-        for (bj = 0; bj < n; bj += bs) {
-            for (i = bi;(i < bi + bs) && (i < n); i++) {
-                for (j = bj; (j < bj + bs) && ( j < n); j++) {
-                    matriz[i * n + j] *= escalar;
-                }
-            }
-        }
-    }
-
-    //multiplicacion
-    /*for (int i = 0; i < n; i++)
-    {
-        for (int j = 0; j < n; j++)
-        {
-            matriz[i*n+j] *= escalar;
-        }
-
-    }*/
-
-}
-
-void printMatriz(double* matriz, int n) {
+void printMatriz(double* matriz, int N) {
     int i, j;
 
-    for (i = 0; i < n; i++) {
-        for (j = 0; j < n; j++) {
-            printf("%f ", matriz[i * n + j]);
+    for (i = 0; i < N; i++) {
+        for (j = 0; j < N; j++) {
+            printf("%f ", matriz[i * N + j]);
         }
         printf("\n");
     }
 }
 
+void multBloques(double* A, double* B, double* AB, double* C, double* ABC, double* D, double* DC, double* DCB, int N, int bs, double* max, double* min) {
+    int I, J, K, i, j, k;
+    double* Ablk, * Bblk, * Cblk, * Dblk, * ABblk, * ABCblk, * DCblk, * DCBblk;
+
+    for (I = 0; I < N; I += bs) {
+        for (J = 0; J < N; J += bs) {
+            ABblk = &AB[I * N + J];
+            DCblk = &DC[I * N + J];
+            for (K = 0; K < N; K += bs) {
+                Ablk = &A[I * N + K];
+                Bblk = &B[J * N + K];
+                Dblk = &D[I * N + K];
+                Cblk = &C[J * N + K];
+                for (i = 0; i < bs; i++) {
+                    for (j = 0; j < bs; j++) {
+                        for (k = 0; k < bs; k++) {
+                            //AB=A*B
+                            ABblk[i * N + j] += Ablk[i * N + k] * Bblk[j * N + k];
+                            //DC=D*C
+                            DCblk[i * N + j] += Dblk[i * N + k] * Cblk[j * N + k];
+
+                        }
+                        //MIN(A)
+                        if (Ablk[i * N + j] < *min) *min = Ablk[i * N + j];
+                        //MAX(D)
+                        if (Dblk[i * N + j] > *max) *max = Dblk[i * N + j];
+                    }
+                }
+            }
+        }
+        for (J = 0; J < N; J += bs) {
+            ABCblk = &ABC[I * N + J];
+            DCBblk = &DCB[I * N + J];
+            for (K = 0; K < N; K += bs) {
+                ABblk = &AB[I * N + K];
+                Cblk = &C[J * N + K];
+                DCblk = &DC[I * N + K];
+                Bblk = &B[J * N + K];
+                for (i = 0; i < bs; i++) {
+                    for (j = 0; j < bs; j++) {
+                        for (k = 0; k < bs; k++) {
+                            //ABC=AB*C
+                            ABCblk[i * N + j] += ABblk[i * N + k] * Cblk[j * N + k];
+                            //DCB=DC*B
+                            DCBblk[i * N + j] += DCblk[i * N + k] * Bblk[j * N + k];
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+double sumBloques_promedio(double* ABC, double* DCB, double* P, int N, int bs, double min, double max) {
+    //suma en bloques
+    int I, J, i, j;
+    double sumTotal = 0;
+    double sum;
+    double* ABCblk, * DCBblk, * Pblk;
+
+    for (I = 0; I < N; I += bs) {
+        for (J = 0; J < N; J += bs) {
+            Pblk = &P[I * N + J];
+            ABCblk = &ABC[I * N + J];
+            DCBblk = &DCB[I * N + J];
+            for (i = 0; i < bs; i++) {
+                for (j = 0; j < bs; j++) {
+                    Pblk[i * N + j] = max * ABCblk[i * N + j] + min * DCBblk[i * N + j];
+                    sumTotal += Pblk[i * N + j];
+                }
+            }
+        }
+    }
+    return (sumTotal / (N * N));
+}
+
+void prod_escalar(double* P, double* R, double promP, int N, int bs) {
+    //suma en bloques
+    int I, J, i, j;
+    double* Pblk, * Rblk;
+
+    for (I = 0; I < N; I += bs) {
+        for (J = 0; J < N; J += bs) {
+            Rblk = &R[I * N + J];
+            Pblk = &P[I * N + J];
+            for (i = 0; i < bs; i++) {
+                for (j = 0; j < bs; j++) {
+                    Rblk[i * N + j] = promP * Pblk[i * N + j];
+                }
+            }
+        }
+    }
+}
+
 int main(int argc, char* argv[]) {
     double* A, * B, * C, * D, * P, * R, * AB, * ABC, * DC, * DCB;
-    double maxD = -1, minA = 999, sum=0;
-    int n, bs;
-    int i, j, k;
-    float promP;
-
-    // Chequeo de parámetros
-    if ((argc != 3) || ((n = atoi(argv[1])) <= 0) || ((bs = atoi(argv[2])) <= 0) || ((n % bs) != 0)) {
-        printf("Error en los parámetros. Usar: ./%s N BS (N debe ser multiplo de BS)\n", argv[0]);
-        exit(1);
-    }
+    double maxD = -1, minA = 9999;
+    int N = 8;
+    int bs = 2;
+    int i, j;
+    double promP;
 
     // Alocar  
-    A = (double*)malloc(n * n * sizeof(double));
-    B = (double*)malloc(n * n * sizeof(double));
-    AB = (double*)malloc(n * n * sizeof(double));
-    C = (double*)malloc(n * n * sizeof(double));
-    ABC = (double*)malloc(n * n * sizeof(double));
-    D = (double*)malloc(n * n * sizeof(double));
-    DC = (double*)malloc(n * n * sizeof(double));
-    DCB = (double*)malloc(n * n * sizeof(double));
-    P = (double*)malloc(n * n * sizeof(double));
-    R = (double*)malloc(n * n * sizeof(double));
+    A = (double*)malloc(N * N * sizeof(double));
+    B = (double*)malloc(N * N * sizeof(double));
+    AB = (double*)malloc(N * N * sizeof(double));
+    C = (double*)malloc(N * N * sizeof(double));
+    ABC = (double*)malloc(N * N * sizeof(double));
+    D = (double*)malloc(N * N * sizeof(double));
+    DC = (double*)malloc(N * N * sizeof(double));
+    DCB = (double*)malloc(N * N * sizeof(double));
+    P = (double*)malloc(N * N * sizeof(double));
+    R = (double*)malloc(N * N * sizeof(double));
 
     // Inicializacion
-    for (i = 0; i < n; i++) {
-        for (j = 0; j < n; j++) {
-            A[i * n + j] = 1.0;
-            B[j * n + i] = 1.0; //ordenada por columnas
-            AB[i * n + j] = 0.0;
-            C[j * n + i] = 1.0; //ordenada por columnas
-            ABC[i * n + j] = 0.0;
-            D[i * n + j] = 1.0;
-            DC[i * n + j] = 0.0;
-            DCB[i * n + j] = 0.0;
-            P[i * n + j] = 0.0;
-            R[i * n + j] = 0.0;
+    for (i = 0; i < N; i++) {
+        for (j = 0; j < N; j++) {
+            A[i * N + j] = 1.0;
+            B[j * N + i] = 1.0; //ordenada por columnas
+            AB[i * N + j] = 0.0;
+            C[j * N + i] = 1.0; //ordenada por columnas
+            ABC[i * N + j] = 0.0;
+            D[i * N + j] = 1.0;
+            DC[i * N + j] = 0.0;
+            DCB[i * N + j] = 0.0;
+            P[i * N + j] = 0.0;
+            R[i * N + j] = 0.0;
         }
     }
 
     //tomar tiempo start
     double timetick = dwalltime();
 
-    //realizamos la multiplicacion de matrices
-    multBloques(A, B, AB, n, bs); //A*B (n)
-    multBloques(AB, C, ABC, n, bs); //AB*C (n*n)
-    
-    multBloques(D, C, DC, n, bs); //D*C (n)
-    multBloques(DC, B, DCB, n, bs); //DC*B (n*n)
-
-    //calculamos el valor maximo de D
-    for (int i = 0; i < n; i++) {
-        for (int j = 0; j < n; j++) {
-            if (D[i * n + j] > maxD) {
-                maxD = D[i * n + j];
-            }
-        }
-    }
-
-    //calculamos el valor minimo de A
-    for (int i = 0; i < n; i++) {
-        for (int j = 0; j < n; j++) {
-            if (A[i * n + j] < minA) {
-                minA = A[i * n + j];
-            }
-        }
-    }
-
-    //multiplicamos las matrices por los valores maximos y minimos respectivos
-    multEscalar(ABC, n, maxD, bs); //ABC*maxD = (n*n*max)
-    multEscalar(DCB, n, minA, bs); //DCB*miniD = (n*n*min)
-
-    //realizamos la suma y lo guardamos en P
-    sumBloques(ABC, DCB, P, n, bs);
-    
-    //calculamos el promedio de P
-    for (int i = 0; i < n; i++) {
-        for (int j = 0; j < n; j++) {
-            sum += P[i * n + j];
-        }
-    }
-    
-    //multiplicamos a P por su promedio
-    multEscalar(P, n, (sum/(n*n)), bs);
+    //ABC = AB*C, DCB = DC*B, MinA, MaxD
+    multBloques(A, B, AB, C, ABC, D, DC, DCB, N, bs, &maxD, &minA);
+    //P = MaxD*ABC + MinA*DCB, PromP
+    promP = sumBloques_promedio(ABC, DCB, P, N, bs, minA, maxD);
+    //R=PromP*P
+    prod_escalar(P,R,promP,N,bs);
 
     double totalTime = dwalltime() - timetick;
-    printf("Tiempo en bloques de %d x %d: %f\n", bs, bs, totalTime);
-
-    printf("El resultado de la operación R = Prom(P)*P es:\n");
-    printMatriz(P, n);
+    printf("Tiempo en bloques de %d x %d: %f\N", bs, bs, totalTime);
 
     //liberamos memoria
     free(A);
