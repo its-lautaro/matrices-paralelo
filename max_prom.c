@@ -1,5 +1,3 @@
-//PThreads 
-//Tengo que hacer MaxD, sumBloques y promP
 
 #include <stdio.h>
 #include <stdlib.h>
