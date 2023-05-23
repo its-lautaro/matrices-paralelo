@@ -72,9 +72,5 @@ int main(int argc, char const* argv[]) {
 
     printMatriz(matriz, N);
 
-    // printf("El resultado del producto escalar 3*M es:\n");
-    // printMatriz(matriz, N);
-
-
     return 0;
 }
