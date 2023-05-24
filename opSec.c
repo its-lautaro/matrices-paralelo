@@ -131,10 +131,15 @@ void prod_escalar(double* P, double* R, double promP, int N, int bs) {
 int main(int argc, char* argv[]) {
     double* A, * B, * C, * D, * P, * R, * AB, * ABC, * DC, * DCB;
     double maxD = -1, minA = 9999;
-    int N = 8;
-    int bs = 2;
+    int N,bs;
     int i, j;
     double promP;
+
+    // Chequeo de parámetros
+    if ((argc != 3) || ((N = atoi(argv[1])) <= 0) || ((bs = atoi(argv[2])) <= 0) || ((N % bs) != 0)) {
+        printf("Error en los parámetros. Usar: ./%s N BS (N debe ser multiplo de BS)\n", argv[0]);
+        exit(1);
+    }
 
     // Alocar  
     A = (double*)malloc(N * N * sizeof(double));
