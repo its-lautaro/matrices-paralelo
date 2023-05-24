@@ -13,10 +13,10 @@ double dwalltime() {
     return sec;
 }
 
-void validate(double* matriz, double res, int N){
-    for (int i = 0; i < N; i++){
-        for (int j = 0; j < N; j++){
-            if (matriz[i * N  + j] != res){
+void validate(double* matriz, double res, int N) {
+    for (int i = 0; i < N; i++) {
+        for (int j = 0; j < N; j++) {
+            if (matriz[i * N + j] != res) {
                 printf("Error en %d, %d, valor: %f\n", i, j, matriz[i * N + j]);
             }
         }
@@ -88,11 +88,11 @@ void printMatriz(double* matriz, int n) {
 }
 
 int main(int argc, char* argv[]) {
-    double* A, * B, * C, * D, * P, * R, * AB, * ABC, * DC, * DCB;
+    double* A, * B, * C, * D, * P, * AB, * ABC, * DC, * DCB;
     double maxD = -1, minA = 9999, sum = 0;
-    int n,bs;
+    int n, bs;
     int i, j, k;
-    float promP;
+    double promP;
 
     // Chequeo de parámetros
     if ((argc != 3) || ((n = atoi(argv[1])) <= 0) || ((bs = atoi(argv[2])) <= 0) || ((n % bs) != 0)) {
@@ -110,7 +110,7 @@ int main(int argc, char* argv[]) {
     DC = (double*)malloc(n * n * sizeof(double));
     DCB = (double*)malloc(n * n * sizeof(double));
     P = (double*)malloc(n * n * sizeof(double));
-    R = (double*)malloc(n * n * sizeof(double));
+    //R = (double*)malloc(n * n * sizeof(double));
 
     // Inicializacion
     for (i = 0; i < n; i++) {
@@ -124,7 +124,7 @@ int main(int argc, char* argv[]) {
             DC[i * n + j] = 0.0;
             DCB[i * n + j] = 0.0;
             P[i * n + j] = 0.0;
-            R[i * n + j] = 0.0;
+            //R[i * n + j] = 0.0;
         }
     }
 
@@ -134,7 +134,6 @@ int main(int argc, char* argv[]) {
     //realizamos la multiplicacion de matrices
     multBloques(A, B, AB, n, bs); //A*B (n)
     multBloques(AB, C, ABC, n, bs); //AB*C (n*n)
-
     multBloques(D, C, DC, n, bs); //D*C (n)
     multBloques(DC, B, DCB, n, bs); //DC*B (n*n)
 
@@ -161,7 +160,7 @@ int main(int argc, char* argv[]) {
     multEscalar(DCB, n, minA, bs); //DCB*miniD = (n*n*min)
 
     //realizamos la suma y lo guardamos en P
-    sumBloques(ABC, DCB, P, n, bs);
+    sumBloques(ABC, DCB, P, n, bs); //minA*ABC + maxD*DCB = (n*n*2)
 
     //calculamos el promedio de P
     for (int i = 0; i < n; i++) {
@@ -171,7 +170,8 @@ int main(int argc, char* argv[]) {
     }
 
     //multiplicamos a P por su promedio
-    multEscalar(P, n, (sum / (n * n)), bs);
+    promP = (sum / (n * n));
+    multEscalar(P, n, promP, bs);
 
     double totalTime = dwalltime() - timetick;
     printf("Tiempo en bloques de %d x %d: %f\n", bs, bs, totalTime);
@@ -180,15 +180,15 @@ int main(int argc, char* argv[]) {
     //AB = A*B , todos sus valores son N
     validate(AB, n, n);
     //DC = D*C , todos sus valores son N
-    validate(DC, n,n);
+    validate(DC, n, n);
     //ABC = AB*C , todos sus valores son N*N*maxD
-    validate(ABC, n*n*maxD, n);
+    validate(ABC, n * n * maxD, n);
     //DCB= DC*B , todos sus valores son N*N*minA
-    validate(DCB, n*n*minA, n);
-    //P = MaxD*ABC + MinA*DCB, todos sus valores son (N*N*maxD)+(N*N*minA)
-    validate(P, ((n*n*maxD)+(n*n*minA)), n);
+    validate(DCB, n * n * minA, n);
     //R = promP*P, todos sus valores son promP*((N*N*maxD)+(N*N*minA))
-    validate(R, (promP*((n*n*maxD)+(n*n*minA))), n);
+    validate(P, ((n * n * maxD) + (n * n * minA)) * (sum / (n * n)), n);
+    
+    //validate(R, (promP * ((n * n * maxD) + (n * n * minA))), n);
 
     //liberamos memoria
     free(A);
@@ -200,7 +200,7 @@ int main(int argc, char* argv[]) {
     free(ABC);
     free(DCB);
     free(P);
-    free(R);
+    //free(R);
 
     return 0;
 }
