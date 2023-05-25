@@ -107,6 +107,7 @@ double sumBloques_promedio(double* ABC, double* DCB, double* P, int N, int bs, d
             }
         }
     }
+    printf("Sum Total: %f",sumTotal);
     return (sumTotal / (N * N));
 }
 
@@ -156,12 +157,12 @@ int main(int argc, char* argv[]) {
     // Inicializacion
     for (i = 0; i < N; i++) {
         for (j = 0; j < N; j++) {
-            A[i * N + j] = 1.0;
+            A[i * N + j] = i*N+j;
             B[j * N + i] = 1.0; //ordenada por columnas
             AB[i * N + j] = 0.0;
             C[j * N + i] = 1.0; //ordenada por columnas
             ABC[i * N + j] = 0.0;
-            D[i * N + j] = 1.0;
+            D[i * N + j] = i*N+j;
             DC[i * N + j] = 0.0;
             DCB[i * N + j] = 0.0;
             P[i * N + j] = 0.0;
@@ -184,17 +185,17 @@ int main(int argc, char* argv[]) {
 
     //Validaciones 
     //AB = A*B , todos sus valores son N
-    validate(AB, N, N);
-    //DC = D*C , todos sus valores son N
-    validate(DC, N, N);
-    //ABC = AB*C , todos sus valores son N*N*maxD
-    validate(ABC, N*N*maxD, N);
-    //DCB= DC*B , todos sus valores son N*N*minA
-    validate(DCB, N*N*minA, N);
-    //P = MaxD*ABC + MinA*DCB, todos sus valores son (N*N*maxD)+(N*N*minA)
-    validate(P, ((N*N*maxD)+(N*N*minA)), N);
-    //R = promP*P, todos sus valores son promP*((N*N*maxD)+(N*N*minA))
-    validate(R, (promP*((N*N*maxD)+(N*N*minA))), N);
+    // validate(AB, N, N);
+    // //DC = D*C , todos sus valores son N
+    // validate(DC, N, N);
+    // //ABC = AB*C , todos sus valores son N*N*maxD
+    // validate(ABC, N*N*maxD, N);
+    // //DCB= DC*B , todos sus valores son N*N*minA
+    // validate(DCB, N*N*minA, N);
+    // //P = MaxD*ABC + MinA*DCB, todos sus valores son (N*N*maxD)+(N*N*minA)
+    // validate(P, ((N*N*maxD)+(N*N*minA)), N);
+    // //R = promP*P, todos sus valores son promP*((N*N*maxD)+(N*N*minA))
+    // validate(R, (promP*((N*N*maxD)+(N*N*minA))), N);
 
     //liberamos memoria
     free(A);
