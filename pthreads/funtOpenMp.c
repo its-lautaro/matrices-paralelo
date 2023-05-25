@@ -132,7 +132,7 @@ int main() {
     double* A, * B, * C, * D;
     double* P, * R, * AB, * ABC, * DC, * DCB;
     double* sumas, *minimos, *maximos;
-    double maxD = -1, minA = 999;
+    double maxD = -1.0, minA = 9999.0;
     double promP = 0;
 
     // Alocar  
@@ -146,7 +146,7 @@ int main() {
     DCB = (double*)malloc(N * N * sizeof(double));
     P = (double*)malloc(N * N * sizeof(double));
     R = (double*)malloc(N * N * sizeof(double));
-    sumas = (double*)malloc(N * N * sizeof(double));  
+    sumas = (double*)malloc(T * sizeof(double));  
     maximos = (double*)malloc(T * sizeof(double));
     minimos = (double*)malloc(T * sizeof(double)); 
 
@@ -170,10 +170,9 @@ int main() {
     double timetick = dwalltime();
 
     omp_set_num_threads(T);
-    #pragma omp parallel 
+    #pragma omp parallel    
     {
         int id = omp_get_thread_num();
-        int T = omp_get_num_threads();
         multBloques(A,B,AB,C,ABC,D,DC,DCB,N,BS,id,T,minimos,maximos);
 
         //Reducción para obtener el mínimo y maximo
