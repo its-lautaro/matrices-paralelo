@@ -12,7 +12,10 @@ int N;//tamaño de la matriz
 int BS;//tamaño de bloque
 int T;//cantidad de threads
 double* A, * B, * AB, * C, * ABC, * D, * DC, * DCB;
-double maxD = -1, minA = 9999;
+double* maximos, * minimos;
+double maxD, minA;
+
+pthread_barrier_t barrera;
 
 void printMatriz(double* matriz, int n) {
     int i, j;
@@ -37,6 +40,7 @@ double dwalltime() {
 void* multBloques(void* arg) {
     int id = *(int*)arg;
     double* Ablk, * Bblk, * Cblk, * Dblk, * ABblk, * ABCblk, * DCblk, * DCBblk;
+    double local_min = 9999, local_max = -1;
     for (int I = (id * BS); I < N; I += (T * BS)) {
         for (int J = 0; J < N; J += BS) {
             ABblk = &AB[I * N + J];
@@ -56,9 +60,16 @@ void* multBloques(void* arg) {
 
                         }
                         //MIN(A)
-                        if (Ablk[i * N + j] < minA) minA = Ablk[i * N + j];
+                        if (Ablk[i * N + j] < local_min) {
+                            local_min = Ablk[i * N + j];
+                            //printf("proceso %d local_min %f\n", id, local_min);
+                        }
+
                         //MAX(D)
-                        if (Dblk[i * N + j] > maxD) maxD = Dblk[i * N + j];
+                        if (Dblk[i * N + j] > local_max) {
+                            local_max = Dblk[i * N + j];
+                            //printf("proceso %d local_max %f\n", id, local_max);
+                        }
                     }
                 }
             }
@@ -84,6 +95,36 @@ void* multBloques(void* arg) {
             }
         }
     }
+    //cargo minimo y maximo local
+    minimos[id] = local_min;
+    maximos[id] = local_max;
+    pthread_barrier_wait(&barrera); //esperar a que se terminen de escribir las variables compartidas
+    //reducir arreglo
+    int offset = 2;
+    while (offset <= T) {
+        if (id % offset == 0) {
+            local_min = 9999;
+            local_max = -1;
+            for (int i = (id/offset);i < ((id)/offset)+offset;i++) { //cada hilo recorre su parte del arreglo y busca los minimos y maximos
+                if (minimos[i] < local_min) local_min = minimos[i];
+                if (maximos[i] > local_max) local_max = maximos[i];
+            }
+        }
+        pthread_barrier_wait(&barrera); //esperan todos a que se termine de leer las variables compartidas
+        if (id % offset == 0) {
+            //se reduce el arreglo
+            maximos[id / offset] = local_max;
+            minimos[id / offset] = local_min;
+
+            if (offset == T) {
+                maxD = maximos[0];
+                minA = minimos[0];
+            }
+
+        }
+        pthread_barrier_wait(&barrera); //esperar a que se terminen de escribir las variables compartidas
+        offset *= 2; //reduce a la mitad los procesos activos
+    }
 
     pthread_exit(NULL);
 }
@@ -96,6 +137,7 @@ int main(int argc, char* argv[]) {
     double timetick;
 
     pthread_t hilos[T];
+
     int threads_ids[T];
 
     // Alocar  
@@ -108,15 +150,18 @@ int main(int argc, char* argv[]) {
     DC = (double*)malloc(N * N * sizeof(double));
     DCB = (double*)malloc(N * N * sizeof(double));
 
+    maximos = (double*)malloc(T * sizeof(double));
+    minimos = (double*)malloc(T * sizeof(double));
+
     // Inicializacion
     for (int i = 0; i < N; i++) {
         for (int j = 0; j < N; j++) {
-            A[i * N + j] = 1;
+            A[i * N + j] = i * N + j;
             B[j * N + i] = 1.0; //ordenada por columnas
             AB[i * N + j] = 0.0;
             C[j * N + i] = 1.0; //ordenada por columnas
             ABC[i * N + j] = 0.0;
-            D[i * N + j] = 1;
+            D[i * N + j] = i * N + j;
             DC[i * N + j] = 0.0;
             DCB[i * N + j] = 0.0;
         }
@@ -125,7 +170,7 @@ int main(int argc, char* argv[]) {
 
     //tomar tiempo start
     timetick = dwalltime();
-
+    pthread_barrier_init(&barrera, NULL, T);
     for (int i = 0; i < T; i++) {
         threads_ids[i] = i;
         pthread_create(&hilos[i], NULL, &multBloques, (void*)&threads_ids[i]);
@@ -133,11 +178,14 @@ int main(int argc, char* argv[]) {
     for (int i = 0; i < T; i++) {
         pthread_join(hilos[i], NULL);
     }
+    pthread_barrier_destroy(&barrera);
 
     double totalTime = dwalltime() - timetick;
     printf("Tiempo: %fs\n", totalTime);
 
-    //estoy multiplicando bien?
+    // //estoy multiplicando bien?
+    // printf("Matriz A\n");
+    // printMatriz(A, N);
     // printf("Matriz AB\n");
     // printMatriz(AB, N);
     // printf("Matriz DC\n");
@@ -146,7 +194,6 @@ int main(int argc, char* argv[]) {
     // printMatriz(ABC, N);
     // printf("Matriz DCB\n");
     // printMatriz(DCB, N);
-
-    // printf("MaximoD: %f, MinimoA:%f\n", maxD, minA);
+    printf("MaximoD: %f, MinimoA:%f\n", maxD, minA);
     return 0;
 }
