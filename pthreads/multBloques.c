@@ -100,37 +100,29 @@ void* multBloques(void* arg) {
     maximos[id] = local_max;
     pthread_barrier_wait(&barrera); //esperar a que se terminen de escribir las variables compartidas
     //reducir arreglo
-    int offset = 2;
-    while (offset <= T) {
-        if (id % offset == 0) {
-            local_min = 9999;
-            local_max = -1;
-            for (int i = (id/offset);i < ((id)/offset)+offset;i++) { //cada hilo recorre su parte del arreglo y busca los minimos y maximos
-                if (minimos[i] < local_min) local_min = minimos[i];
-                if (maximos[i] > local_max) local_max = maximos[i];
-            }
+    int procesos_activos = T / 2;
+    while (procesos_activos > 0) {
+        if (id < procesos_activos) {
+            local_min = (minimos[id * 2] > minimos[(id * 2) + 1]) ? minimos[(id * 2) + 1] : minimos[id * 2];
+            local_max = (maximos[id * 2] < maximos[(id * 2) + 1]) ? maximos[(id * 2) + 1] : maximos[id * 2];
         }
         pthread_barrier_wait(&barrera); //esperan todos a que se termine de leer las variables compartidas
-        if (id % offset == 0) {
+        if (id < procesos_activos) {
             //se reduce el arreglo
-            maximos[id / offset] = local_max;
-            minimos[id / offset] = local_min;
-
-            if (offset == T) {
-                maxD = maximos[0];
-                minA = minimos[0];
-            }
-
+            maximos[id] = local_max;
+            minimos[id] = local_min;
         }
+        procesos_activos /= 2; //reduce a la mitad los procesos activos
         pthread_barrier_wait(&barrera); //esperar a que se terminen de escribir las variables compartidas
-        offset *= 2; //reduce a la mitad los procesos activos
     }
-
-    pthread_exit(NULL);
+    if(id==0){
+        maxD=maximos[0];
+        minA=minimos[0];
+    }
 }
 
 int main(int argc, char* argv[]) {
-    BS = 512;
+    BS = 64;
     N = 1024;
     T = 4;
 

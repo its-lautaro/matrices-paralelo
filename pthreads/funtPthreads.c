@@ -11,7 +11,7 @@ double* A, * B, * C, * D; //matrices
 double* P, * ABC, * DCB, * DC, * AB, * R; //matrices resultado
 double* maximos, * minimos, * sumas;
 double maxD, minA;
-double sumTotal = 0, promP;
+double promP;
 
 //declaracion de barreras
 pthread_barrier_t barrera;
@@ -34,6 +34,79 @@ void printMatriz(double* matriz, int N) {
         }
         printf("\n");
     }
+}
+
+void validarAB(double* matriz) {
+    for (int i = 0; i < N; i++) {
+        double res = 0; //valor utilizado para validar
+        for (int j = 1; j < N + 1; j++) {
+            res += i * N + j;
+        }
+        for (int j = 0; j < N; j++) {
+            if (matriz[i * N + j] != res) {
+                printf("ERROR %f no coincide con %f\n", matriz[i * N + j], res);
+                return;
+            }
+        }
+    }
+    printf("OK\n");
+}
+
+void validarABC(double* matriz) {
+    double res;
+    for (int i = 0; i < N; i++) {
+        res = 0; //valor utilizado para validar
+        for (int j = 0; j < N; j++) {
+            res += (i * N + j) + 1; //elemento de AB fila i
+        }
+        res *= N; // elemento de ABC fila i
+        for (int j = 0; j < N; j++) {
+            if (matriz[i * N + j] != res) {
+                printf("ERROR %f no coincide con %f\n", matriz[i * N + j], res);
+                return;
+            }
+        }
+    }
+    printf("OK\n");
+}
+
+void validarP(double* matriz) {
+    double res;
+    for (int i = 0; i < N; i++) {
+        res = 0; //valor utilizado para validar
+        for (int j = 0; j < N; j++) {
+            res += (i * N + j) + 1; //elemento de AB fila i
+        }
+        res *= N; // elemento de ABC fila i
+        res = res * 1 + res * (N * N); //elemento de P fila i
+        for (int j = 0; j < N; j++) {
+            if (matriz[i * N + j] != res) {
+                printf("ERROR %f no coincide con %f\n", matriz[i * N + j], res);
+                return;
+            }
+        }
+    }
+    printf("OK\n");
+}
+
+void validarR(double* matriz) {
+    double res;
+    for (int i = 0; i < N; i++) {
+        res = 0; //valor utilizado para validar
+        for (int j = 1; j < N + 1; j++) {
+            res += i * N + j;
+        }
+        res *= N; // elemento de ABC fila i
+        res = res * 1 + res * (N * N); //elemento de P fila i
+        res = res * promP; //elemento de R fila i
+        for (int j = 0; j < N; j++) {
+            if (matriz[i * N + j] != res) {
+                printf("ERROR %f no coincide con %f\n", matriz[i * N + j], res);
+                return;
+            }
+        }
+    }
+    printf("OK\n");
 }
 
 void multBloques(int id) {
@@ -98,30 +171,25 @@ void multBloques(int id) {
     maximos[id] = local_max;
     pthread_barrier_wait(&barrera); //esperar a que se terminen de escribir las variables compartidas
     //reducir arreglo
-    int offset = 2;
-    while (offset <= T) {
-        if (id % offset == 0) {
-            local_min = 9999;
-            local_max = -1;
-            for (int i = (id / offset);i < ((id) / offset) + offset;i++) { //cada hilo recorre su parte del arreglo y busca los minimos y maximos
-                if (minimos[i] < local_min) local_min = minimos[i];
-                if (maximos[i] > local_max) local_max = maximos[i];
-            }
+    int procesos_activos = T / 2;
+    while (procesos_activos > 0) {
+        if (id < procesos_activos) {
+            local_min = (minimos[id * 2] > minimos[(id * 2) + 1]) ? minimos[(id * 2) + 1] : minimos[id * 2];
+            local_max = (maximos[id * 2] < maximos[(id * 2) + 1]) ? maximos[(id * 2) + 1] : maximos[id * 2];
         }
         pthread_barrier_wait(&barrera); //esperan todos a que se termine de leer las variables compartidas
-        if (id % offset == 0) {
+        if (id < procesos_activos) {
             //se reduce el arreglo
-            maximos[id / offset] = local_max;
-            minimos[id / offset] = local_min;
-
-            if (offset == T) {
-                maxD = maximos[0];
-                minA = minimos[0];
-            }
-
+            maximos[id] = local_max;
+            minimos[id] = local_min;
         }
+        procesos_activos /= 2; //reduce a la mitad los procesos activos
         pthread_barrier_wait(&barrera); //esperar a que se terminen de escribir las variables compartidas
-        offset *= 2; //reduce a la mitad los procesos activos
+    }
+    //pasar los datos a maxD y minA
+    if (id == 0) {
+        maxD = maximos[0];
+        minA = minimos[0];
     }
 }
 
@@ -142,32 +210,25 @@ void sum_promedio(int id) {
             }
         }
     }
+    //cada proceso guarda su suma local
     sumas[id] = sum_local;
     pthread_barrier_wait(&barrera); //esperar a que se terminen de escribir las variables compartidas
     //reducir arreglo
-    int offset = 2;
-    while (offset <= T) {
-        if (id % offset == 0) {
+    int procesos_activos = T / 2;
+    while (procesos_activos > 0) {
+        if (id < procesos_activos) {
             sum_local = 0;
-            for (int i = (id / (offset - 1));i < ((id+1) / (offset - 1));i++) { //cada hilo recorre su parte del arreglo y busca los minimos y maximos
-                sum_local += sumas[i];
-                printf("id %d sumas[%d]=%f\n", id, i,sumas[i]);
-            }
+            sum_local = sumas[id * 2] + sumas[id * 2 + 1];
         }
-        pthread_barrier_wait(&barrera); //esperan todos a que se termine de leer las variables compartidas
-        if (id % offset == 0) {
-            //se reduce el arreglo
-            printf("proceso %d offset %d\n",id,offset);
-            sumas[id / offset] = sum_local;
-            
-            if (offset == T) {
-                printf("Esta suma tiene que dar 2130739200: %f\n",sumas[0]);
-                promP = (sum_local / (N * N));
-            }
-
+        pthread_barrier_wait(&barrera);
+        if (id < procesos_activos) {
+            sumas[id] = sum_local;
         }
-        pthread_barrier_wait(&barrera); //esperar a que se terminen de escribir las variables compartidas
-        offset *= 2; //reduce a la mitad los procesos activos
+        procesos_activos /= 2;
+        pthread_barrier_wait(&barrera);
+    }
+    if (id == 0) {
+        promP = sumas[0] / (N * N);
     }
 }
 
@@ -198,7 +259,7 @@ void* behavior(void* arg) {
     // Calcula P = MaxD.ABC + MinA.DCB y PromP
     sum_promedio(id);
 
-    pthread_barrier_wait(&barrera); //esperando PromP
+    pthread_barrier_wait(&barrera); //esperando promP
 
     //Calcula R = PromP.P
     producto_escalar(id);
@@ -207,10 +268,15 @@ void* behavior(void* arg) {
 }
 
 int main(int argc, char* argv[]) {
-    BS = 2;
-    N = 16;
-    T = 8;
+    BS=128; //tamaño de bloque optimo
+    
+    // Chequeo de parámetros
+    if ((argc != 3) || ((N = atoi(argv[1])) <= 0) || ((T = atoi(argv[2])) <= 0)) {
+        printf("Error en los parámetros. Usar: ./%s N T\n", argv[0]);
+        exit(1);
+    }
 
+    printf("Matriz %dx%d en %d hilos\n",N,N,T);
     pthread_t hilos[T];
     int threads_ids[T];
 
@@ -232,11 +298,11 @@ int main(int argc, char* argv[]) {
     // Inicializacion
     for (int i = 0; i < N; i++) {
         for (int j = 0; j < N; j++) {
-            A[i * N + j] = i*N+j;
+            A[i * N + j] = (i * N + j) + 1;
             B[j * N + i] = 1.0; //ordenada por columnas
             AB[i * N + j] = 0.0;
             C[j * N + i] = 1.0; //ordenada por columnas
-            D[i * N + j] = i*N+j;
+            D[i * N + j] = (i * N + j) + 1;
             DC[i * N + j] = 0.0;
             ABC[i * N + j] = 0.0;
             DCB[i * N + j] = 0.0;
@@ -267,10 +333,22 @@ int main(int argc, char* argv[]) {
     double totalTime = dwalltime() - timetick;
     printf("Tiempo en bloques de %d x %d: %f\n", BS, BS, totalTime);
 
-    //16,384
-    //printMatriz(R, N);
 
-    //Validaciones
+    printf("Maximo:%f Minimo:%f Promedio:%f\n", maxD, minA, promP);
+    //Se validan los resultados para una matriz no simetrica (cuyos elementos son (i*N+j))
+    printf("Validando producto AB.. ");
+    validarAB(AB);
+    printf("Validando producto DC.. ");
+    validarAB(DC);
+    printf("Validando producto ABC.. ");
+    validarABC(ABC);
+    printf("Validando producto DCB.. ");
+    validarABC(DCB);
+    //maximo (N*N) minimo 1
+    printf("Validando matriz P.. ");
+    validarP(P);
+    printf("Validando matriz R.. ");
+    validarR(R);
 
     //Liberamos memoria
     free(A);
