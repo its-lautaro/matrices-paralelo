@@ -127,7 +127,7 @@ void producto_escalar(double* P, double* R, int BS, int id, int T, int N, double
 
 int main() {
     int BS = 2;
-    int N = 8;
+    int N = 6;
     int T = 6;
     double* A, * B, * C, * D;
     double* P, * R, * AB, * ABC, * DC, * DCB;

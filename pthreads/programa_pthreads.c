@@ -25,16 +25,16 @@ double dwalltime() {
     return sec;
 }
 
-void printMatriz(double* matriz, int N) {
-    int i, j;
+// void printMatriz(double* matriz, int N) {
+//     int i, j;
 
-    for (i = 0; i < N; i++) {
-        for (j = 0; j < N; j++) {
-            printf("%f ", matriz[i * N + j]);
-        }
-        printf("\n");
-    }
-}
+//     for (i = 0; i < N; i++) {
+//         for (j = 0; j < N; j++) {
+//             printf("%f ", matriz[i * N + j]);
+//         }
+//         printf("\n");
+//     }
+// }
 
 void validarAB(double* matriz) {
     for (int i = 0; i < N; i++) {
@@ -133,13 +133,11 @@ void multBloques(int id) {
                         //MIN(A)
                         if (Ablk[i * N + j] < local_min) {
                             local_min = Ablk[i * N + j];
-                            //printf("proceso %d local_min %f\n", id, local_min);
                         }
 
                         //MAX(D)
                         if (Dblk[i * N + j] > local_max) {
                             local_max = Dblk[i * N + j];
-                            //printf("proceso %d local_max %f\n", id, local_max);
                         }
                     }
                 }
@@ -268,7 +266,7 @@ void* behavior(void* arg) {
 }
 
 int main(int argc, char* argv[]) {
-    BS=128; //tamaño de bloque optimo
+    BS=64; //tamaño de bloque optimo
     
     // Chequeo de parámetros
     if ((argc != 3) || ((N = atoi(argv[1])) <= 0) || ((T = atoi(argv[2])) <= 0)) {
