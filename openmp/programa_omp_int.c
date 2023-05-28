@@ -12,15 +12,15 @@ double dwalltime() {
     return sec;
 }
 
-void validarAB(double* matriz, int N) {
+void validarAB(int* matriz, int N) {
     for (int i = 0; i < N; i++) {
-        double res = 0; //valor utilizado para validar
+        int res = 0; //valor utilizado para validar
         for (int j = 1; j < N + 1; j++) {
             res += i * N + j;
         }
         for (int j = 0; j < N; j++) {
             if (matriz[i * N + j] != res) {
-                printf("ERROR %f no coincide con %f\n", matriz[i * N + j], res);
+                printf("ERROR %d no coincide con %d\n", matriz[i * N + j], res);
                 return;
             }
         }
@@ -28,8 +28,8 @@ void validarAB(double* matriz, int N) {
     printf("OK\n");
 }
 
-void validarABC(double* matriz, int N) {
-    double res;
+void validarABC(int* matriz, int N) {
+    int res;
     for (int i = 0; i < N; i++) {
         res = 0; //valor utilizado para validar
         for (int j = 0; j < N; j++) {
@@ -38,7 +38,7 @@ void validarABC(double* matriz, int N) {
         res *= N; // elemento de ABC fila i
         for (int j = 0; j < N; j++) {
             if (matriz[i * N + j] != res) {
-                printf("ERROR %f no coincide con %f\n", matriz[i * N + j], res);
+                printf("ERROR %d no coincide con %d\n", matriz[i * N + j], res);
                 return;
             }
         }
@@ -46,8 +46,8 @@ void validarABC(double* matriz, int N) {
     printf("OK\n");
 }
 
-void validarP(double* matriz, int N) {
-    double res;
+void validarP(int* matriz, int N) {
+    int res;
     for (int i = 0; i < N; i++) {
         res = 0; //valor utilizado para validar
         for (int j = 0; j < N; j++) {
@@ -57,7 +57,7 @@ void validarP(double* matriz, int N) {
         res = res * 1 + res * (N * N); //elemento de P fila i
         for (int j = 0; j < N; j++) {
             if (matriz[i * N + j] != res) {
-                printf("ERROR %f no coincide con %f\n", matriz[i * N + j], res);
+                printf("ERROR %d no coincide con %d\n", matriz[i * N + j], res);
                 return;
             }
         }
@@ -65,8 +65,8 @@ void validarP(double* matriz, int N) {
     printf("OK\n");
 }
 
-void validarR(double* matriz, int N, double promP) {
-    double res;
+void validarR(int* matriz, int N, long double promP) {
+    int res;
     for (int i = 0; i < N; i++) {
         res = 0; //valor utilizado para validar
         for (int j = 1; j < N + 1; j++) {
@@ -77,7 +77,7 @@ void validarR(double* matriz, int N, double promP) {
         res = res * promP; //elemento de R fila i
         for (int j = 0; j < N; j++) {
             if (matriz[i * N + j] != res) {
-                printf("ERROR %f no coincide con %f\n", matriz[i * N + j], res);
+                printf("ERROR %d no coincide con %d\n", matriz[i * N + j], res);
                 return;
             }
         }
@@ -86,48 +86,50 @@ void validarR(double* matriz, int N, double promP) {
 }
 
 int main() {
-    int N = 8; // Suponiendo matrices cuadradas de tamaño N x N
-    int BS = 2; // Tamaño del bloque
-    int T = 4; // Número de hilos a utilizar
+    int N = 4096; // Suponiendo matrices cuadradas de tamaño N x N
+    int BS = 64; // Tamaño del bloque
+    int T = 6; // Número de hilos a utilizar
 
-    double* A, * B, * AB, * C, * ABC, * D, * DCB, * DC, * P, * R;
-    double maximos[T];
-    double minimos[T];
-    double maxD = -1, minA = 9999;
-    double sumas[T];
-    long sumaTotal=0;
+    int* A, * B, * AB, * C, * ABC, * D, * DCB, * DC, * P, * R;
+    int maximos[T];
+    int minimos[T];
+    int maxD = -1, minA = 9999;
+    
+    long sumas[T];
+    long sumaTotal = 0;
     long double promP;
 
     // Asignar memoria para las matrices A, B y AB
-    A = (double*)malloc(N * N * sizeof(double));
-    B = (double*)malloc(N * N * sizeof(double));
-    C = (double*)malloc(N * N * sizeof(double));
-    AB = (double*)malloc(N * N * sizeof(double));
-    DC = (double*)malloc(N * N * sizeof(double));
-    ABC = (double*)malloc(N * N * sizeof(double));
-    D = (double*)malloc(N * N * sizeof(double));
-    DCB = (double*)malloc(N * N * sizeof(double));
-    P = (double*)malloc(N * N * sizeof(double));
-    R = (double*)malloc(N * N * sizeof(double));
+    A = (int*)malloc(N * N * sizeof(int));
+    B = (int*)malloc(N * N * sizeof(int));
+    C = (int*)malloc(N * N * sizeof(int));
+    AB = (int*)malloc(N * N * sizeof(int));
+    DC = (int*)malloc(N * N * sizeof(int));
+    ABC = (int*)malloc(N * N * sizeof(int));
+    D = (int*)malloc(N * N * sizeof(int));
+    DCB = (int*)malloc(N * N * sizeof(int));
+    P = (int*)malloc(N * N * sizeof(int));
+    R = (int*)malloc(N * N * sizeof(int));
 
     // Inicializar las matrices A, B y AB
     for (int i = 0; i < N; i++) {
         for (int j = 0; j < N; j++) {
             A[i * N + j] = (i * N + j) + 1;
-            B[j * N + i] = 1.0;
-            AB[i * N + j] = 0.0;
-            C[j * N + i] = 1.0;
-            ABC[i * N + j] = 0.0;
+            B[j * N + i] = 1;
+            AB[i * N + j] = 0;
+            C[j * N + i] = 1;
+            ABC[i * N + j] = 0;
             D[i * N + j] = (i * N + j) + 1;
-            DC[i * N + j] = 0.0;
-            DCB[i * N + j] = 0.0;
+            DC[i * N + j] = 0;
+            DCB[i * N + j] = 0;
         }
     }
     double timetick = dwalltime();
     // Realizar la multiplicación de matrices en bloques (ABC y DCB) y construir arreglo de maximos y minimos
 #pragma omp parallel num_threads(T)
     {
-        double min_local = 9999, max_local = -1;
+        int id = omp_get_thread_num();
+        int min_local = 9999, max_local = -1;
 #pragma omp for
         for (int I = 0; I < N; I += BS) {
             for (int J = 0; J < N; J += BS) {
@@ -167,8 +169,8 @@ int main() {
                 }
             }
         }
-        minimos[omp_get_thread_num()] = min_local;
-        maximos[omp_get_thread_num()] = max_local;
+        minimos[id] = min_local;
+        maximos[id] = max_local;
     }
     //Barrera para esperar que todos los procesos terminen de construir los arreglos maximos y minimos
 #pragma omp parallel for reduction(max: maxD) reduction(min: minA)
@@ -179,7 +181,8 @@ int main() {
     //Calcular la suma P=maxD*ABC + minA*DCB, en bloques y crear el arreglo sumas
 #pragma omp parallel num_threads(T)
     {
-        int suma_local = 0;
+        long suma_local = 0;
+        int id = omp_get_thread_num();
 #pragma omp for
         for (int I = 0; I < N; I += BS) {
             for (int J = 0; J < N; J += BS) {
@@ -192,13 +195,16 @@ int main() {
                 }
             }
         }
-        sumas[omp_get_thread_num()] = suma_local;
+
+        //printf("%d: suma local: %ld\n", id, suma_local);
+        sumas[id] = suma_local;
     }
     //Barrera para esperar que todos los procesos terminen de construir el arreglo sumas
 #pragma omp parallel for reduction(+: sumaTotal)
     for (int i = 0; i < T; i++) {
         sumaTotal += sumas[i];
     }
+    //printf("Suma total %ld\n",sumaTotal);
     //El proceso maestro calcula promP
     promP = sumaTotal / (N * N);
     //Calcula el producto escalar R=PromP*P
@@ -220,7 +226,7 @@ int main() {
     double totalTime = dwalltime() - timetick;
     printf("Tiempo en bloques de %d x %d: %f\n", BS, BS, totalTime);
 
-    printf("Maximo:%f Minimo:%f Promedio:%f\n", maxD, minA, promP);
+    printf("Maximo:%d Minimo:%d Promedio:%Lf\n", maxD, minA, promP);
     //Se validan los resultados para una matriz no simetrica (cuyos elementos son (i*N+j))
     printf("Validando producto AB.. ");
     validarAB(AB, N);
