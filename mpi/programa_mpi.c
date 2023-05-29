@@ -23,20 +23,18 @@ void printMatriz(double* matriz, int N) {
     }
 }
 
-double sum_promedio(double* ABC, double* DCB, double* P, int N, double minA, double maxD, int BS, int comienzo, int fin) {
-    double* Pblk, * ABCblk, * DCBblk;
+double sum_promedio(double* ABC, double* DCB, double* P, int N, double minA, double maxD, int BS, int id, int nro_procesos) {
+    int filas = N/nro_procesos;
     double sum = 0;
 
-    //for (int I = (id*(N/T)); I < ((id+1)*(N/T)); I ++) { otra opcion 
-    for (int I = comienzo; I < fin; I++) {
+    for (int I = 0; I < filas; I += BS) {
         for (int J = 0; J < N; J += BS) {
-            Pblk = &P[I * N + J];
-            ABCblk = &ABC[I * N + J];
-            DCBblk = &DCB[I * N + J];
-            for (int i = 0; i < BS; i++) {
-                for (int j = 0; j < BS; j++) {
-                    Pblk[i * N + j] = maxD * ABCblk[i * N + j] + minA * DCBblk[i * N + j];
-                    sum += Pblk[i * N + j];
+            printf("id:%d, I: %d, J:%d.\n", id, I,J);
+            for (int i = I; i < I + BS; i++) {
+                for (int j = J; j < J + BS; j++) {
+                    P[i * N + j] = maxD * ABC[i * N + j] + minA * DCB[i * N + j];
+                    printf("id:%d, ABC+BCD=%f+%f=P=%f.\n", id, ABC[i * N + j],DCB[i * N + j],P[i * N + j]);
+                    sum += P[i * N + j];
                 }
             }
         }
@@ -45,16 +43,13 @@ double sum_promedio(double* ABC, double* DCB, double* P, int N, double minA, dou
     return sum;
 }
 
-void producto_escalar(double* P, double* R, int N, double promP, int BS,int comienzo, int fin) {
-    double* Pblk, * Rblk;
-
-    for (int I = comienzo; I < fin; I++){
+void producto_escalar(double* P, double* R, int N, double promP, int BS, int nro_procesos) {
+    int filas = N/nro_procesos;
+    for (int I = 0; I < filas; I += BS){
         for (int J = 0; J < N; J += BS){
-            Rblk = &R[I * N + J];
-            Pblk = &P[I * N + J];
-            for (int i = 0; i < BS; i++) {
-                for (int j = 0; j < BS; j++) {
-                    Rblk[i * N + j] = promP * Pblk[i * N + j];
+            for (int i = I; i < I + BS; i++) {
+                for (int j = J; j < J + BS; j++) {
+                    R[i * N + j] = promP * P[i * N + j];
                 }
             }
         }
@@ -64,7 +59,6 @@ void producto_escalar(double* P, double* R, int N, double promP, int BS,int comi
 int main(int argc, char** argv) {
     const int BS = 2; 
     int N = 8;
-    int T = 6;
     double* A, * B, * C, * D;
     double* P, * R, * AB, * ABC, * DC, * DCB;
     double* P_part, *ABC_part, *DCB_part, *R_part;
@@ -86,17 +80,17 @@ int main(int argc, char** argv) {
     }
 
     //Cada uno asigna solo su parte
-    P_part = (double*)malloc(BS * BS * sizeof(double));
-    ABC_part = (double*)malloc(BS * BS * sizeof(double));
-    DCB_part = (double*)malloc(BS * BS * sizeof(double));
-    R_part = (double*)malloc(BS * BS * sizeof(double));
+    P_part = (double*)malloc(((N/nro_procesos)*N) * sizeof(double));
+    ABC_part = (double*)malloc(((N/nro_procesos)*N) * sizeof(double));
+    DCB_part = (double*)malloc(((N/nro_procesos)*N) * sizeof(double));
+    R_part = (double*)malloc(((N/nro_procesos)*N) * sizeof(double));
 
     // Inicializacion
     if(id == 0){
         for (int i = 0; i < N; i++) {
             for (int j = 0; j < N; j++) {
-                ABC[i * N + j] = 0.0;
-                DCB[i * N + j] = 0.0;
+                ABC[i * N + j] = i*N+j;
+                DCB[i * N + j] = i*N+j;
                 P[i * N + j] = 0.0;
                 R[i * N + j] = 0.0;
             }
@@ -110,18 +104,22 @@ int main(int argc, char** argv) {
     //ademas tendremos los minimos y maximos de las matrices A y D respectivamente
     //multBloques(A,B,AB,C,ABC,D,DC,DCB,N,BS,id,T,minimos,maximos);
 
-    MPI_Barrier(MPI_COMM_WORLD); //primer barrera de sincronizacion
+    //MPI_Barrier(MPI_COMM_WORLD); //primer barrera de sincronizacion
 
     //Distribuyo las matrices ABC y DCB entre los procesos
-    MPI_Scatter(ABC,(BS*BS),MPI_DOUBLE,ABC_part,(BS*BS),MPI_DOUBLE,0,MPI_COMM_WORLD);
-    MPI_Scatter(DCB,(BS*BS),MPI_DOUBLE,DCB_part,(BS*BS),MPI_DOUBLE,0,MPI_COMM_WORLD);
+    //MPI_Scatter(void *sendbuf,   int sendcount, MPI_Datatype sendtype, void *recvbuf, int recvcount, MPI_Datatype recvtype, int rootRank, MPI_Comm comm)
+    MPI_Scatter(ABC,((N/nro_procesos)*N),MPI_DOUBLE,ABC_part,((N/nro_procesos)*N),MPI_DOUBLE,0,MPI_COMM_WORLD);
+    MPI_Scatter(DCB,((N/nro_procesos)*N),MPI_DOUBLE,DCB_part,((N/nro_procesos)*N),MPI_DOUBLE,0,MPI_COMM_WORLD);
 
     //P = MaxD*ABC + MinA*DCB, PromP
-    sum_local = sum_promedio(ABC_part,DCB_part,P_part,N,minA,maxD,BS,0,(N/BS));
+    sum_local = sum_promedio(ABC_part,DCB_part,P_part,N,minA,maxD,BS,id,nro_procesos);
+
+    printf("id: %d sume :%f\n", id, sum_local);
 
     //Recopilo los resultados parciales en el proceso raiz (P)
-    MPI_Gather(P_part,(BS*BS),MPI_DOUBLE,P,(BS*BS),MPI_DOUBLE,0,MPI_COMM_WORLD);
+    MPI_Gather(P_part,((N/nro_procesos)*N),MPI_DOUBLE,P,((N/nro_procesos)*N),MPI_DOUBLE,0,MPI_COMM_WORLD);
 
+    //MPI_Reduce(const void *sendbuf, void *recvbuf, int count, MPI_Datatype datatype, MPI_Op op, int rootRank, MPI_Comm comm)
     //Realizo la reduccion de las sumas
     MPI_Reduce(&sum_local,&promP,1,MPI_DOUBLE,MPI_SUM,0,MPI_COMM_WORLD);
 
@@ -129,32 +127,29 @@ int main(int argc, char** argv) {
 
     if(id == 0){
         promP = promP/(N*N); 
-        printf("El promedio es igual a :%f\n", promP);
     }
-
-    //deberia hacer un broadcast para que todos tengan el promedio calculado por el root? 
+    
+    //MPI_Bcast(void *buffer, int count, MPI_Datatype dtype, int root, MPI_Comm comm)
+    MPI_Bcast(&promP, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD); 
+    printf("SOY: %d El promedio es igual a :%f\n", id, promP);
 
     MPI_Barrier(MPI_COMM_WORLD); //tercer barrera de sincronizacion   
 
     //Distribuyo la matriz P entre los procesos
-    MPI_Scatter(P,(BS*BS),MPI_DOUBLE,P_part,(BS*BS),MPI_DOUBLE,0,MPI_COMM_WORLD);
+    MPI_Scatter(P,((N/nro_procesos)*N),MPI_DOUBLE,P_part,((N/nro_procesos)*N),MPI_DOUBLE,0,MPI_COMM_WORLD);
     
     //R=promP*P
-    producto_escalar(P_part,R_part,N,promP,BS,0,(N/BS));
+    producto_escalar(P_part,R_part,N,promP,BS,nro_procesos);
 
     //Recopilo los resultados parciales en el proceso raiz (R)
-    MPI_Gather(R_part,(BS*BS),MPI_DOUBLE,R,(BS*BS),MPI_DOUBLE,0,MPI_COMM_WORLD);
-
-
+    MPI_Gather(R_part,((N/nro_procesos)*N),MPI_DOUBLE,R,((N/nro_procesos)*N),MPI_DOUBLE,0,MPI_COMM_WORLD);
 
     MPI_Barrier(MPI_COMM_WORLD); //barrera de sincronizacion auxiliar para imprimir
-    printMatriz(R,N);
-
-
-
+    
+    if(id == 0) printMatriz(R,N);
 
     //double totalTime = dwalltime() - timetick;
-    //printf("Tiempo en bloques de %d x %d: %f\n", BS, BS, totalTime);
+    //printf("Tiempo en bloques de %d x %d: %f\n", BS, BS, totalTime);*/
 
     //liberamos memoria
     if(id == 0){
