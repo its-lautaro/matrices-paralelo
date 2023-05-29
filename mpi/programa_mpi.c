@@ -144,12 +144,8 @@ int main(int argc, char** argv) {
     //Recopilo los resultados parciales en el proceso raiz (R)
     MPI_Gather(R_part,((N/nro_procesos)*N),MPI_DOUBLE,R,((N/nro_procesos)*N),MPI_DOUBLE,0,MPI_COMM_WORLD);
 
-    MPI_Barrier(MPI_COMM_WORLD); //barrera de sincronizacion auxiliar para imprimir
-    
-    if(id == 0) printMatriz(R,N);
-
-    //double totalTime = dwalltime() - timetick;
-    //printf("Tiempo en bloques de %d x %d: %f\n", BS, BS, totalTime);*/
+    double totalTime = dwalltime() - timetick;
+    printf("Tiempo en bloques de %d x %d: %f\n", BS, BS, totalTime);
 
     //liberamos memoria
     if(id == 0){
