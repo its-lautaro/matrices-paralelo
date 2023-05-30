@@ -100,6 +100,9 @@ Ahora si analizamos la comunicación de los procesos, resulta que solo hay una i
 
 
 ### Pthread
+
 ### OpenMP
+
 ## Algoritmo paralelo (Memoria distribuida)
+
 ### MPI
