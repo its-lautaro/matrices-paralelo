@@ -8,10 +8,9 @@
 ### Grupo 4
 ### **Integrantes**
 
-
-
 * La Vecchia, Lautaro - 02031/2
 * Torres, Gabriel - 1987/4
+<br/>
 
 ## Indice
 - [Introducción](#introducción)
@@ -45,17 +44,15 @@
     - [Observando los resultados obtenidos para Pthreads y OpenMP](#observando-los-resultados-obtenidos-para-pthreads-y-openmp)
     - [Observando los resultados obtenidos para MPI](#observando-los-resultados-obtenidos-para-mpi)
 
-
 ## Introducción
 
-En el presente informe se busca describir las distintas estrategias de paralelización obtenidas a lo largo del curso. Para llevar a cabo dicha tarea partiremos desde un algoritmo secuencial que utiliza técnica por bloques para realizar los cálculos y operaciones sobre matrices. 
+En el presente informe se explica la estrategia de diseño de los algoritmos que resuelven las operaciones con matrices y su posterior paralelizacion. 
 
 Abordaremos por separado tres de las librerías principales para el manejo de paralelismo: **<span style="text-decoration:underline;">PThreads</span>**, **<span style="text-decoration:underline;">OpenMP</span>** y **<span style="text-decoration:underline;">MPI</span>**.  
 
-Su objetivo es mejorar los tiempos de ejecución y la eficiencia del algoritmo secuencial para posteriormente realizar un análisis de escalabilidad. Se deben tener en cuenta factores como los tiempos de ejecución, unidades de procesamiento, tamaño de la matriz cuadrada, procesos/hilos involucrados, cálculo de speedup y eficiencia, entre otros.
+El objetivo buscado es mejorar los tiempos de ejecución del algoritmo secuencial y posteriormente realizar un análisis de escalabilidad y eficiencia sobre las soluciones paralelas.
 
 ## Desarrollo
-
 
 ### Problema 1: C = AB, siendo A, B y C matrices cuadradas de N*N
 
@@ -84,14 +81,11 @@ output_file="1024/bs${bs_value}.txt"  # Nombre del archivo de salida
 ./mult_bloques 1024 ${bs_value} > $output_file
 ```
 
-
 _<span style="text-decoration:underline;">Técnica por bloques:</span> estrategia de programación que consiste en dividir una tarea o proceso en bloques más pequeños y realizar las tarea en cada bloque de forma independiente. Nos permite mejorar el rendimiento al reducir el número de accesos a memoria y aprovechar la localidad de los datos._
-
 
 #### Cálculo del tamaño óptimo del bloque de memoria
 
 Obtenemos el promedio del tiempo de ejecución a partir de 3 ejecuciones independientes, utilizando distintos tamaños de bloque y distintos tamaños de matriz.
-
 
 <table>
   <tr>
@@ -176,11 +170,9 @@ Obtenemos el promedio del tiempo de ejecución a partir de 3 ejecuciones indepen
   </tr>
 </table>
 
-
 Los tamaños de bloque que obtienen el mejor tiempo de ejecución difieren entre cada matriz, pero si comparamos la diferencia de tiempos de las matrices al usar un bloque de tamaño de 128 (en fondo verde) con respecto a su bloque óptimo (en letra azul), la diferencia es prácticamente despreciable. Por este motivo elegimos el tamaño de bloque de 128 como el tamaño óptimo para todas las matrices, _siempre que sea posible*_.
 
-* Dependiendo de la cantidad de elementos que se reparta a cada proceso, puede darse que el tamaño de bloque máximo se vea limitado. En particular, al trabajar con 8 y 16 procesos se tiene que los tamaños de bloque serán:
-
+> *Dependiendo de la cantidad de elementos que se reparta a cada proceso, puede darse que el tamaño de bloque máximo se vea limitado. En particular, al trabajar con 8 y 16 procesos se tiene que los tamaños de bloque serán:
 
 <table>
   <tr>
@@ -215,23 +207,14 @@ Los tamaños de bloque que obtienen el mejor tiempo de ejecución difieren entre
   </tr>
 </table>
 
-
-Esto es para garantizar que cada proceso trabaje con al menos 2 bloques, evitando la situación en la que cada proceso trabaja con 1 bloque, ya que esto no ofrece ningún beneficio en cuanto a la localidad.
-
-
 ### Problema 2: R = PromP * P, con P = MaxD * (A*B*C) + MinA * (D*C*B)
 
 Cuando existe dependencia de datos entre las operaciones realizadas, como en este caso, resulta en mejores tiempos de ejecución efectuar estas operaciones simultáneamente, ya que se minimizan los accesos a memoria y además se aprovecha que los datos ya se encuentran en memoria caché. Las mejoras se pueden observar analizando el tiempo de ejecución de los programas expMatrices 1, 2 y 3 de la práctica 1.
 
-
 #### Solución secuencial.
-
-
 ##### expMatrices1.c: AB+AC+AD
 
 El programa expMatrices1 realiza la operación de dos formas:
-
-
 
 * Suma los elementos de las matrices **AB**, **AC** y **AD** a medida que los calcula.
 * Calcula las matrices **AB**, **AC** y **AD **completas , cada una en su propio bucle, y luego en otro bucle las suma.    
@@ -256,14 +239,11 @@ El programa expMatrices1 realiza la operación de dos formas:
   </tr>
 </table>
 
-
 Al haber dependencia de datos, realizar las operaciones en 1 bucle evita fallos de cache (se suman valores que ya están en memoria)
-
 
 ##### expMatrices2.c: AB+CD
 
 Observamos lo mismo que en el programa anterior.
-
 
 <table>
   <tr>
@@ -284,12 +264,9 @@ Observamos lo mismo que en el programa anterior.
   </tr>
 </table>
 
-
-
 ##### expMatrices3.c: BA+CAD
 
 Observamos lo mismo que en el programa anterior.
-
 
 <table>
   <tr>
@@ -310,20 +287,14 @@ Observamos lo mismo que en el programa anterior.
   </tr>
 </table>
 
-
-
 #### Estrategias de implementación.
 
 Teniendo en cuenta los resultados obtenidos y aprovechando la técnica por bloques probaremos que esta técnica es aplicable a nuestra operación, la cual consiste en los siguientes cálculos:
 
-
-
 * P = MaxD.(ABC) + MinA.(DCB)
 * R = PromP.P
 
-Es decir, 4 multiplicaciones matriciales (A*B,AB*C,D*C,DC*B), cálculo de máximo y mínimo, 3 multiplicaciones escalares (MaxD*ABC, MinA*DCB,PromP*P), una suma y el cálculo de un promedio. Una forma de aprovechar la dependencia de datos para minimizar los fallos de caché, es dividir el cálculo en la menor cantidad de etapas posible:
-
-
+Es decir, 4 multiplicaciones matriciales (A\*B,AB\*C,D\*C,DC\*B), cálculo de máximo y mínimo, 3 multiplicaciones escalares (MaxD\*ABC, MinA\*DCB,PromP\*P), una suma y el cálculo de un promedio. Una forma de aprovechar la dependencia de datos para minimizar los fallos de caché, es dividir el cálculo en la menor cantidad de etapas posible:
 
 1. _multBloques(): _Realizar las multiplicaciones matriciales en un mismo bucle, y al mismo tiempo calcular el máximo y mínimo de las matrices D y A respectivamente.
 2. _sumPromedio()_: Una vez calculados MaxD y MinD se puede realizar el cálculo de P en otro bucle. Mientras se realiza este cálculo, dentro del mismo bloque se puede llevar a cabo la suma de todos los elementos de P, para el posterior cálculo de su promedio (PromP).
@@ -331,13 +302,10 @@ Es decir, 4 multiplicaciones matriciales (A*B,AB*C,D*C,DC*B), cálculo de máxim
 
 Se implementaron dos algoritmos secuenciales: 
 
-
-
 * _secuencial_dependencia_datos.c_
 * _secuencial.c_
 
  El primero utiliza la técnica anteriormente descrita. El segundo utiliza otra técnica alternativa en donde cada operación se realiza en su propio bucle. Comparando ambos tiempos de ejecución se comprobó que el tiempo es menor al realizar varias operaciones por bucle. El tamaño de bloque utilizado fue el tamaño óptimo (**[BS = 128](#cálculo-del-tamaño-óptimo-del-bloque-de-memoria-5)**).
-
 
 <table>
   <tr>
@@ -372,17 +340,11 @@ Se implementaron dos algoritmos secuenciales:
   </tr>
 </table>
 
-
 Comprobamos que aprovechar la dependencia de datos mejora el tiempo de ejecución. Posteriormente se utilizará este programa secuencial (_secuencial_dependencia_datos.c_) para obtener la solución paralela.
-
-
-#### 
-
 
 #### Paralelización del algoritmo secuencial.
 
 Con el objetivo de aprovechar al máximo las ventajas de utilizar técnica por bloques, se utiliza un enfoque para la paralelización en donde las operaciones internas siguen funcionando de forma secuencial, pero se paraleliza el bucle externo. Para lograr nuestro cometido, se utilizan las librerías anteriormente mencionadas optimizando sus diversas funcionalidades y estrategias. 
-
 
 ##### PTHREADS
 
@@ -392,18 +354,14 @@ A su vez, dentro de cada etapa, se utilizó el id de cada proceso en el bucle ex
 
 _Nota: Al reducir el arreglo se probaron dos enfoques:_
 
-
-
 * _Delegar la tarea de reducción al proceso “root” (idP = 0)_
 * _Paralelizar la reducción del arreglo entre los T procesos._
 
 _Calculando tiempos de ejecución se observó que cuando la matriz es relativamente chica y los procesos son pocos es menor el tiempo si la reducción la realiza el root. Sin embargo, la estrategia óptima en cuanto a escalabilidad y eficiencia es implementar una reducción de los elementos recopilados distribuyendo el trabajo entre los procesos._
 
-
 ##### OPENMP
 
 Para la implementación en OpenMP se siguió una estrategia similar pero reescribiendo los algoritmos con las directivas específicas de la librería. Se utilizó _<span style="text-decoration:underline;">#pragma omp parallel</span>_ para distribuir el trabajo entre los T procesos. Luego para distribuir los bloques de matrices, lo que anteriormente llamamos _“distribuir el for externo”, _se utilizó la directiva _<span style="text-decoration:underline;">#pragma omp for</span>_. Estos bucles corresponden, cada uno, a una de las etapas descritas en el algoritmo secuencial. Finalmente se utilizó la directiva _<span style="text-decoration:underline;">reduction</span>_ dentro de los bucles principales para obtener la suma total de los elementos de la matriz P, para obtener el máximo de la matriz D y el mínimo de la matriz A.
-
 
 ##### MPI
 
@@ -417,14 +375,11 @@ Para las matrices que se reparten entre procesos (A y D) se realizó un _Scatter
 
 Una vez dispersados los elementos de las matrices a cada proceso, se realizan las operaciones de cada etapa de manera independiente. Entre cada etapa es necesario realizar reducciones y comunicaciones únicamente para obtener las variables mínimo, máximo y promedio. El _Gather_ de los elementos dispersos sólo es necesario al final de la operación para obtener la matriz R y validar los resultados.
 
-
 ## Análisis de escalabilidad y conclusiones.
 
 Para evaluar la estrategia de paralelización utilizada y la escalabilidad de la solución, se utilizarán las métricas vistas en clase (_speedup y eficiencia_). Para obtener los tiempos de ejecución necesarios para las métricas de cada programa, se utilizó el cluster provisto por la cátedra. A continuación se comparten los resultados obtenidos para los programas paralelos.
 
-
 #### Tiempo de ejecución: Pthreads
-
 
 <table>
   <tr>
@@ -475,10 +430,7 @@ Para evaluar la estrategia de paralelización utilizada y la escalabilidad de la
   </tr>
 </table>
 
-
-
 #### Tiempo de ejecución: OpenMP
-
 
 <table>
   <tr>
@@ -529,10 +481,7 @@ Para evaluar la estrategia de paralelización utilizada y la escalabilidad de la
   </tr>
 </table>
 
-
-
 #### Tiempo de ejecución: MPI
-
 
 <table>
   <tr>
@@ -593,14 +542,11 @@ Para evaluar la estrategia de paralelización utilizada y la escalabilidad de la
   </tr>
 </table>
 
-
-
 ### SPEEDUP 
 
 Es una métrica de rendimiento que muestra el incremento relativo obtenido al ejecutar un programa luego de aplicar mejoras. A nuestro programa inicial secuencial se le realizaron mejoras significativas por medio de la paralelización.
 
 #### SPEEDUP para Pthreads
-
 
 <table>
   <tr>
@@ -682,10 +628,7 @@ Es una métrica de rendimiento que muestra el incremento relativo obtenido al ej
   </tr>
 </table>
 
-
-
 #### SPEEDUP para MPI
-
 
 <table>
   <tr>
@@ -736,22 +679,11 @@ Es una métrica de rendimiento que muestra el incremento relativo obtenido al ej
   </tr>
 </table>
 
-
 ### EFICIENCIA
 
 Medida de rendimiento que indica el porcentaje de tiempo en el que las unidades de procesamiento realizan trabajo útil.
 
-
-
-**S:** Speedup
-
-**P: **Número de **unidades de procesamiento**
-
-Según los valores de Speedup la eficiencia se encuentra dentro del rango 0&lt;E&lt;1.
-
-
 #### EFICIENCIA para Pthreads
-
 
 <table>
   <tr>
@@ -792,10 +724,7 @@ Según los valores de Speedup la eficiencia se encuentra dentro del rango 0&lt;E
   </tr>
 </table>
 
-
-
 #### EFICIENCIA para OpenMP
-
 
 <table>
   <tr>
@@ -836,10 +765,7 @@ Según los valores de Speedup la eficiencia se encuentra dentro del rango 0&lt;E
   </tr>
 </table>
 
-
-
 #### EFICIENCIA para MPI
-
 
 <table>
   <tr>
@@ -890,11 +816,9 @@ Según los valores de Speedup la eficiencia se encuentra dentro del rango 0&lt;E
   </tr>
 </table>
 
-
 ### ESCALABILIDAD
 
 Un programa paralelo es escalable si mantiene constante la eficiencia al aumentar el número de unidades de procesamiento aumentando también el tamaño del problema.
-
 
 #### Observando los resultados obtenidos para Pthreads y OpenMP
 
