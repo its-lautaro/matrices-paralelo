@@ -23,7 +23,6 @@
       - [expMatrices2.c: AB+CD](#expmatrices2c-abcd)
       - [expMatrices3.c: BA+CAD](#expmatrices3c-bacad)
     - [Estrategias de implementación.](#estrategias-de-implementación)
-    - [](#)
     - [Paralelización del algoritmo secuencial.](#paralelización-del-algoritmo-secuencial)
       - [PTHREADS](#pthreads)
       - [OPENMP](#openmp)
