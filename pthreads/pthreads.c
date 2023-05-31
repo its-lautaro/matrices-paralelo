@@ -1,19 +1,25 @@
+/*************************************************
+* Operaciones en bloque sobre matrices de NxN
+* Pthreads
+*
+* * Torres, Gabriel
+* * La Vecchia, Lautaro
+*************************************************/
 #include <stdio.h>
 #include <stdlib.h>  
 #include <sys/time.h>
 #include <pthread.h>
 
-//variables compartidas
-int N;//tamaño de la matriz
-int BS;//tamaño de bloque
-int T;//cantidad de threads
-double* A, * B, * C, * D; //matrices
-double* P, * ABC, * DCB, * DC, * AB, * R; //matrices resultado
+// Variables compartidas
+int N; // Dimension
+int BS; // Tamaño de bloque
+int T; // Número de hilos a utilizar
+double* A, * B, * C, * D; // Matrices
+double* P, * ABC, * DCB, * DC, * AB, * R; // Matrices resultado
 double* maximos, * minimos, * sumas;
 double maxD, minA;
 double promP;
 
-//declaracion de barreras
 pthread_barrier_t barrera;
 
 double dwalltime() {
@@ -25,90 +31,20 @@ double dwalltime() {
     return sec;
 }
 
-// void printMatriz(double* matriz, int N) {
-//     int i, j;
-
-//     for (i = 0; i < N; i++) {
-//         for (j = 0; j < N; j++) {
-//             printf("%f ", matriz[i * N + j]);
-//         }
-//         printf("\n");
-//     }
-// }
-
-void validarAB(double* matriz) {
+// Valida los resultados para matrices unitarias (donde todos los elementos contienen el mismo resultado)
+void validar(double* matriz, double res, int N) {
     for (int i = 0; i < N; i++) {
-        double res = 0; //valor utilizado para validar
-        for (int j = 1; j < N + 1; j++) {
-            res += i * N + j;
-        }
         for (int j = 0; j < N; j++) {
             if (matriz[i * N + j] != res) {
-                printf("ERROR %f no coincide con %f\n", matriz[i * N + j], res);
+                printf("Error en %d, %d, valor: %f\n", i, j, matriz[i * N + j]);
                 return;
             }
         }
     }
-    printf("OK\n");
+    printf("OK!\n");
 }
 
-void validarABC(double* matriz) {
-    double res;
-    for (int i = 0; i < N; i++) {
-        res = 0; //valor utilizado para validar
-        for (int j = 0; j < N; j++) {
-            res += (i * N + j) + 1; //elemento de AB fila i
-        }
-        res *= N; // elemento de ABC fila i
-        for (int j = 0; j < N; j++) {
-            if (matriz[i * N + j] != res) {
-                printf("ERROR %f no coincide con %f\n", matriz[i * N + j], res);
-                return;
-            }
-        }
-    }
-    printf("OK\n");
-}
-
-void validarP(double* matriz) {
-    double res;
-    for (int i = 0; i < N; i++) {
-        res = 0; //valor utilizado para validar
-        for (int j = 0; j < N; j++) {
-            res += (i * N + j) + 1; //elemento de AB fila i
-        }
-        res *= N; // elemento de ABC fila i
-        res = res * 1 + res * (N * N); //elemento de P fila i
-        for (int j = 0; j < N; j++) {
-            if (matriz[i * N + j] != res) {
-                printf("ERROR %f no coincide con %f\n", matriz[i * N + j], res);
-                return;
-            }
-        }
-    }
-    printf("OK\n");
-}
-
-void validarR(double* matriz) {
-    double res;
-    for (int i = 0; i < N; i++) {
-        res = 0; //valor utilizado para validar
-        for (int j = 1; j < N + 1; j++) {
-            res += i * N + j;
-        }
-        res *= N; // elemento de ABC fila i
-        res = res * 1 + res * (N * N); //elemento de P fila i
-        res = res * promP; //elemento de R fila i
-        for (int j = 0; j < N; j++) {
-            if (matriz[i * N + j] != res) {
-                printf("ERROR %f no coincide con %f\n", matriz[i * N + j], res);
-                return;
-            }
-        }
-    }
-    printf("OK\n");
-}
-
+// Calcula el producto ABC y DCB, obtiene el minimo de A y el maximo de D
 void multBloques(int id) {
     double* Ablk, * Bblk, * Cblk, * Dblk, * ABblk, * ABCblk, * DCblk, * DCBblk;
     double local_min = 9999, local_max = -1;
@@ -143,6 +79,7 @@ void multBloques(int id) {
                 }
             }
         }
+        // Una vez que calcule un bloque de AB (y DC), calculo un bloque de ABC (y DCB)
         for (int J = 0; J < N; J += BS) {
             ABCblk = &ABC[I * N + J];
             DCBblk = &DCB[I * N + J];
@@ -164,37 +101,36 @@ void multBloques(int id) {
             }
         }
     }
-    //cargo minimo y maximo local
+    // Cargo minimo y maximo local
     minimos[id] = local_min;
     maximos[id] = local_max;
-    pthread_barrier_wait(&barrera); //esperar a que se terminen de escribir las variables compartidas
-    //reducir arreglo
+    pthread_barrier_wait(&barrera); // Para esperar a que se terminen de escribir las variables compartidas
+    // Reducción de los arreglos (max y min)
     int procesos_activos = T / 2;
     while (procesos_activos > 0) {
         if (id < procesos_activos) {
             local_min = (minimos[id * 2] > minimos[(id * 2) + 1]) ? minimos[(id * 2) + 1] : minimos[id * 2];
             local_max = (maximos[id * 2] < maximos[(id * 2) + 1]) ? maximos[(id * 2) + 1] : maximos[id * 2];
         }
-        pthread_barrier_wait(&barrera); //esperan todos a que se termine de leer las variables compartidas
+        pthread_barrier_wait(&barrera); // Para esperar a que se terminen de leer las variables compartidas
         if (id < procesos_activos) {
-            //se reduce el arreglo
+            // Reducción
             maximos[id] = local_max;
             minimos[id] = local_min;
         }
-        procesos_activos /= 2; //reduce a la mitad los procesos activos
-        pthread_barrier_wait(&barrera); //esperar a que se terminen de escribir las variables compartidas
+        procesos_activos /= 2;
+        pthread_barrier_wait(&barrera); // Para esperar a que se terminen de escribir las variables compartidas
     }
-    //pasar los datos a maxD y minA
+    // El thread 0 actua como "root" y comparte los datos a maxD y minA
     if (id == 0) {
         maxD = maximos[0];
         minA = minimos[0];
     }
 }
-
+// Calcula la matriz P = ABC*maxD + DCB*minA, y la suma total de los elementos de P
 void sum_promedio(int id) {
     double* Pblk, * ABCblk, * DCBblk, * Ablk, * Bblk, * Cblk, * Dblk, * ABblk, * DCblk;
     double sum_local;
-    //for (int I = (id*(N/T)); I < ((id+1)*(N/T)); I ++) { otra opcion 
     for (int I = (id * BS); I < N; I += (T * BS)) {
         for (int J = 0; J < N; J += BS) {
             Pblk = &P[I * N + J];
@@ -208,28 +144,29 @@ void sum_promedio(int id) {
             }
         }
     }
-    //cada proceso guarda su suma local
+    // Cada proceso guarda su suma local
     sumas[id] = sum_local;
-    pthread_barrier_wait(&barrera); //esperar a que se terminen de escribir las variables compartidas
-    //reducir arreglo
+    pthread_barrier_wait(&barrera); // Para esperar a que se terminen de escribir las variables compartidas
+    // Reducción del arreglo (suma)
     int procesos_activos = T / 2;
     while (procesos_activos > 0) {
         if (id < procesos_activos) {
             sum_local = 0;
             sum_local = sumas[id * 2] + sumas[id * 2 + 1];
         }
-        pthread_barrier_wait(&barrera);
+        pthread_barrier_wait(&barrera); // Para esperar a que se terminen de leer las variables compartidas
         if (id < procesos_activos) {
             sumas[id] = sum_local;
         }
         procesos_activos /= 2;
-        pthread_barrier_wait(&barrera);
+        pthread_barrier_wait(&barrera); // Para esperar a que se terminen de escribir las variables compartidas
     }
+    // El thread 0 actua como "root" y comparte el dato promP
     if (id == 0) {
         promP = sumas[0] / (N * N);
     }
 }
-
+// Calcula el producto escalar R = PromP * R
 void producto_escalar(int id) {
     double* Pblk, * Rblk;
 
@@ -249,32 +186,28 @@ void producto_escalar(int id) {
 void* behavior(void* arg) {
     int id = *(int*)arg;
 
-    //Calcula A.B.C y D.C.B, MinA y MaxD
     multBloques(id);
 
-    pthread_barrier_wait(&barrera); //esperando MaxD y MinA
+    pthread_barrier_wait(&barrera); // Para calcular la suma necesito los valores maxD y minA
 
-    // Calcula P = MaxD.ABC + MinA.DCB y PromP
     sum_promedio(id);
 
-    pthread_barrier_wait(&barrera); //esperando promP
+    pthread_barrier_wait(&barrera); // Para calcular el producto escalar necesito el valor de promP
 
-    //Calcula R = PromP.P
     producto_escalar(id);
 
     pthread_exit(NULL);
 }
 
 int main(int argc, char* argv[]) {
-    BS=64; //tamaño de bloque optimo
-    
-    // Chequeo de parámetros
-    if ((argc != 3) || ((N = atoi(argv[1])) <= 0) || ((T = atoi(argv[2])) <= 0)) {
-        printf("Error en los parámetros. Usar: ./%s N T\n", argv[0]);
-        exit(1);
-    }
 
-    printf("Matriz %dx%d en %d hilos\n",N,N,T);
+    // Chequeo de parametros
+    if ((argc != 4) || ((N = atoi(argv[1])) <= 0) || ((BS = atoi(argv[2])) <= 0) || ((N % BS) != 0)) {
+        printf("Error en los parámetros. Usar: %s N BS T (N debe ser multiplo de BS)\n", argv[0]);
+        return -1;
+    }
+    T = atoi(argv[3]);
+
     pthread_t hilos[T];
     int threads_ids[T];
 
@@ -296,11 +229,11 @@ int main(int argc, char* argv[]) {
     // Inicializacion
     for (int i = 0; i < N; i++) {
         for (int j = 0; j < N; j++) {
-            A[i * N + j] = (i * N + j) + 1;
+            A[i * N + j] = 1.0;
             B[j * N + i] = 1.0; //ordenada por columnas
             AB[i * N + j] = 0.0;
             C[j * N + i] = 1.0; //ordenada por columnas
-            D[i * N + j] = (i * N + j) + 1;
+            D[i * N + j] = 1.0;
             DC[i * N + j] = 0.0;
             ABC[i * N + j] = 0.0;
             DCB[i * N + j] = 0.0;
@@ -309,46 +242,46 @@ int main(int argc, char* argv[]) {
         }
     }
 
-    //Tomar tiempo start
-    double timetick = dwalltime();
-
-    //Inicializamos la primer barrera donde tienen que pasar T elementos
+    // Inicializamos la primer barrera donde tienen que pasar T elementos
     pthread_barrier_init(&barrera, NULL, T);
 
-    //Le damos comportamiento y creamos los hilos
+    // Inicio de la operación paralela
+    double timetick = dwalltime();
+
+    // Le damos comportamiento y creamos los hilos
     for (int i = 0; i < T; i++) {
         threads_ids[i] = i;
         pthread_create(&hilos[i], NULL, &behavior, (void*)&threads_ids[i]);
     }
 
-    //Esperamos a que terminen los T hilos
+    // Esperamos a que terminen los T hilos
     for (int i = 0; i < T; i++) {
         pthread_join(hilos[i], NULL);
     }
 
     pthread_barrier_destroy(&barrera);
 
+    // Calcular tiempo de ejecucion
     double totalTime = dwalltime() - timetick;
-    printf("Tiempo en bloques de %d x %d: %f\n", BS, BS, totalTime);
+    printf("Multiplicación de matriz %dx%d en bloques de %dx%d\n", N, N, BS, BS);
+    printf("Tiempo: %.3fs\n\n", totalTime);
 
+    //Validar los resultados
+    printf("Validando matriz AB... ");
+    validar(AB, N, N);
+    printf("Validando matriz DC... ");
+    validar(DC, N, N);
+    printf("Validando matriz ABC... ");
+    validar(ABC, N * N, N);
+    printf("Validando matriz DCB... ");
+    validar(DCB, N * N, N);
+    printf("Validando matriz P... ");
+    validar(P, (N * N * maxD) + (N * N * minA), N);
+    printf("Validando matriz R... ");
+    validar(R, (((N * N) + (N * N)) * promP), N);
+    printf("Maximo D:%f, Minimo A:%f, Promedio:%f\n", maxD, minA, promP);
 
-    printf("Maximo:%f Minimo:%f Promedio:%f\n", maxD, minA, promP);
-    //Se validan los resultados para una matriz no simetrica (cuyos elementos son (i*N+j))
-    printf("Validando producto AB.. ");
-    validarAB(AB);
-    printf("Validando producto DC.. ");
-    validarAB(DC);
-    printf("Validando producto ABC.. ");
-    validarABC(ABC);
-    printf("Validando producto DCB.. ");
-    validarABC(DCB);
-    //maximo (N*N) minimo 1
-    printf("Validando matriz P.. ");
-    validarP(P);
-    printf("Validando matriz R.. ");
-    validarR(R);
-
-    //Liberamos memoria
+    // Liberamos memoria
     free(A);
     free(B);
     free(C);

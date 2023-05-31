@@ -1,8 +1,13 @@
+/*************************************************
+* Operaciones en bloque sobre matrices de NxN
+* Secuencial, aprovechando la dependencia de datos
+*
+* * Torres, Gabriel
+* * La Vecchia, Lautaro
+*************************************************/
 #include <stdio.h>
 #include<stdlib.h>  
 #include <sys/time.h>
-
-
 
 double dwalltime() {
     double sec;
@@ -13,27 +18,20 @@ double dwalltime() {
     return sec;
 }
 
-void validate(double* matriz, double res, int N){
-    for (int i = 0; i < N; i++){
-        for (int j = 0; j < N; j++){
-            if (matriz[i * N  + j] != res){
+// Valida los resultados para matrices unitarias (donde todos los elementos contienen el mismo resultado)
+void validar(double* matriz, double res, int N) {
+    for (int i = 0; i < N; i++) {
+        for (int j = 0; j < N; j++) {
+            if (matriz[i * N + j] != res) {
                 printf("Error en %d, %d, valor: %f\n", i, j, matriz[i * N + j]);
+                return;
             }
         }
     }
+    printf("OK!\n");
 }
 
-void printMatriz(double* matriz, int N) {
-    int i, j;
-
-    for (i = 0; i < N; i++) {
-        for (j = 0; j < N; j++) {
-            printf("%f ", matriz[i * N + j]);
-        }
-        printf("\n");
-    }
-}
-
+// Calcula el producto ABC y DCB, obtiene el minimo de A y el maximo de D
 void multBloques(double* A, double* B, double* AB, double* C, double* ABC, double* D, double* DC, double* DCB, int N, int bs, double* max, double* min) {
     int I, J, K, i, j, k;
     double* Ablk, * Bblk, * Cblk, * Dblk, * ABblk, * ABCblk, * DCblk, * DCBblk;
@@ -64,6 +62,7 @@ void multBloques(double* A, double* B, double* AB, double* C, double* ABC, doubl
                 }
             }
         }
+        // Una vez que calcule un bloque de AB (y DC), calculo un bloque de ABC (y DCB)
         for (J = 0; J < N; J += bs) {
             ABCblk = &ABC[I * N + J];
             DCBblk = &DCB[I * N + J];
@@ -86,42 +85,36 @@ void multBloques(double* A, double* B, double* AB, double* C, double* ABC, doubl
         }
     }
 }
-
+// Calcula la matriz P = ABC*maxD + DCB*minA, y la suma total de los elementos de P
 double sumBloques_promedio(double* ABC, double* DCB, double* P, int N, int bs, double min, double max) {
-    //suma en bloques
-    int I, J, i, j;
     double sumTotal = 0;
-    double sum;
     double* ABCblk, * DCBblk, * Pblk;
 
-    for (I = 0; I < N; I += bs) {
-        for (J = 0; J < N; J += bs) {
+    for (int I = 0; I < N; I += bs) {
+        for (int J = 0; J < N; J += bs) {
             Pblk = &P[I * N + J];
             ABCblk = &ABC[I * N + J];
             DCBblk = &DCB[I * N + J];
-            for (i = 0; i < bs; i++) {
-                for (j = 0; j < bs; j++) {
+            for (int i = 0; i < bs; i++) {
+                for (int j = 0; j < bs; j++) {
                     Pblk[i * N + j] = max * ABCblk[i * N + j] + min * DCBblk[i * N + j];
                     sumTotal += Pblk[i * N + j];
                 }
             }
         }
     }
-    printf("Sum Total: %f",sumTotal);
     return (sumTotal / (N * N));
 }
-
+// Calcula el producto escalar R = PromP * R
 void prod_escalar(double* P, double* R, double promP, int N, int bs) {
-    //suma en bloques
-    int I, J, i, j;
     double* Pblk, * Rblk;
 
-    for (I = 0; I < N; I += bs) {
-        for (J = 0; J < N; J += bs) {
+    for (int I = 0; I < N; I += bs) {
+        for (int J = 0; J < N; J += bs) {
             Rblk = &R[I * N + J];
             Pblk = &P[I * N + J];
-            for (i = 0; i < bs; i++) {
-                for (j = 0; j < bs; j++) {
+            for (int i = 0; i < bs; i++) {
+                for (int j = 0; j < bs; j++) {
                     Rblk[i * N + j] = promP * Pblk[i * N + j];
                 }
             }
@@ -130,14 +123,14 @@ void prod_escalar(double* P, double* R, double promP, int N, int bs) {
 }
 
 int main(int argc, char* argv[]) {
-    double* A, * B, * C, * D, * P, * R, * AB, * ABC, * DC, * DCB;
+    double* A, * B, * C, * D; // Matrices
+    double* P, * R, * AB, * ABC, * DC, * DCB; // Matrices resultado
     double maxD = -1, minA = 9999;
-    int N,bs;
-    int i, j;
+    int N, BS;
     double promP;
 
     // Chequeo de parámetros
-    if ((argc != 3) || ((N = atoi(argv[1])) <= 0) || ((bs = atoi(argv[2])) <= 0) || ((N % bs) != 0)) {
+    if ((argc != 3) || ((N = atoi(argv[1])) <= 0) || ((BS = atoi(argv[2])) <= 0) || ((N % BS) != 0)) {
         printf("Error en los parámetros. Usar: ./%s N BS (N debe ser multiplo de BS)\n", argv[0]);
         exit(1);
     }
@@ -155,14 +148,14 @@ int main(int argc, char* argv[]) {
     R = (double*)malloc(N * N * sizeof(double));
 
     // Inicializacion
-    for (i = 0; i < N; i++) {
-        for (j = 0; j < N; j++) {
-            A[i * N + j] = i*N+j;
+    for (int i = 0; i < N; i++) {
+        for (int j = 0; j < N; j++) {
+            A[i * N + j] = 1.0;
             B[j * N + i] = 1.0; //ordenada por columnas
             AB[i * N + j] = 0.0;
             C[j * N + i] = 1.0; //ordenada por columnas
             ABC[i * N + j] = 0.0;
-            D[i * N + j] = i*N+j;
+            D[i * N + j] = 1.0;
             DC[i * N + j] = 0.0;
             DCB[i * N + j] = 0.0;
             P[i * N + j] = 0.0;
@@ -170,32 +163,35 @@ int main(int argc, char* argv[]) {
         }
     }
 
-    //tomar tiempo start
+    // Inicio de la operación
     double timetick = dwalltime();
 
     //ABC = AB*C, DCB = DC*B, MinA, MaxD
-    multBloques(A, B, AB, C, ABC, D, DC, DCB, N, bs, &maxD, &minA);
+    multBloques(A, B, AB, C, ABC, D, DC, DCB, N, BS, &maxD, &minA);
     //P = MaxD*ABC + MinA*DCB, PromP
-    promP = sumBloques_promedio(ABC, DCB, P, N, bs, minA, maxD);
+    promP = sumBloques_promedio(ABC, DCB, P, N, BS, minA, maxD);
     //R=PromP*P
-    prod_escalar(P,R,promP,N,bs);
+    prod_escalar(P, R, promP, N, BS);
 
+    // Calcular tiempo de ejecucion
     double totalTime = dwalltime() - timetick;
-    printf("Tiempo en bloques de %d x %d: %f\n", bs, bs, totalTime);
+    printf("Multiplicación de matriz %dx%d en bloques de %dx%d\n", N, N, BS, BS);
+    printf("Tiempo: %.3fs\n\n", totalTime);
 
-    //Validaciones 
-    //AB = A*B , todos sus valores son N
-    // validate(AB, N, N);
-    // //DC = D*C , todos sus valores son N
-    // validate(DC, N, N);
-    // //ABC = AB*C , todos sus valores son N*N*maxD
-    // validate(ABC, N*N*maxD, N);
-    // //DCB= DC*B , todos sus valores son N*N*minA
-    // validate(DCB, N*N*minA, N);
-    // //P = MaxD*ABC + MinA*DCB, todos sus valores son (N*N*maxD)+(N*N*minA)
-    // validate(P, ((N*N*maxD)+(N*N*minA)), N);
-    // //R = promP*P, todos sus valores son promP*((N*N*maxD)+(N*N*minA))
-    // validate(R, (promP*((N*N*maxD)+(N*N*minA))), N);
+    //Validar los resultados
+    printf("Validando matriz AB... ");
+    validar(AB, N, N);
+    printf("Validando matriz DC... ");
+    validar(DC, N, N);
+    printf("Validando matriz ABC... ");
+    validar(ABC, N * N, N);
+    printf("Validando matriz DCB... ");
+    validar(DCB, N * N, N);
+    printf("Validando matriz P... ");
+    validar(P, (N * N * maxD) + (N * N * minA), N);
+    printf("Validando matriz R... ");
+    validar(R, (((N * N) + (N * N)) * promP), N);
+    printf("Maximo D:%f, Minimo A:%f, Promedio:%f\n", maxD, minA, promP);
 
     //liberamos memoria
     free(A);
